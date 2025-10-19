@@ -102,12 +102,8 @@
         Доступно для траты: <strong id="spendable">0.00</strong> €
       </div>
       <div class="tot">
-        **ДОХОД/РАСХОД (НЕТТО):**<br>
-        Чистый баланс (как просили): <strong id="netBalDisplay">0.00</strong> €
-      </div>
-      <div class="tot">
         **СЧЁТ (ФАКТИЧЕСКИЙ БАЛАНС):**<br>
-        Баланс с учётом IVA/IRPF: <strong id="cashFlowBalDisplay">0.00</strong> €
+        Всего денег на счету: <strong id="bankBalDisplay">0.00</strong> €
       </div>
     </div>
 
@@ -140,6 +136,8 @@ document.addEventListener('DOMContentLoaded', function(){
   var irpfReserveEl = document.getElementById('irpfReserve');
   var requiredOnAccountEl = document.getElementById('requiredOnAccount');
   var spendableEl = document.getElementById('spendable');
+  // ВЕРНУЛИ ID bankBalDisplay
+  var bankBalDisplay = document.getElementById('bankBalDisplay'); 
   var notice = document.getElementById('notice');
   var taxRateInput = document.getElementById('taxRateInput');
   var taxRateLabel = document.getElementById('taxRateLabel');
@@ -152,11 +150,6 @@ document.addEventListener('DOMContentLoaded', function(){
   var saveLocal = document.getElementById('saveLocal');
   var loadLocal = document.getElementById('loadLocal');
   var clearAll = document.getElementById('clearAll');
-
-  // НОВЫЕ ЭЛЕМЕНТЫ ДЛЯ ВЫВОДА
-  var netBalDisplay = document.getElementById('netBalDisplay');
-  var cashFlowBalDisplay = document.getElementById('cashFlowBalDisplay');
-
 
   var TAX_RATE = 0.20; // 20% - IRPF quarterly advance (Modelo 130)
   var IVA_RATE = 0.21; // 21% - Standard IVA rate
@@ -206,10 +199,7 @@ document.addEventListener('DOMContentLoaded', function(){
     // 5. ДОСТУПНО К ТРАТЕ И БАЛАНС
     var initialBalance = f(bankBalance.value);
     
-    // НЕТТО-БАЛАНС (по запросу пользователя: только Net Income - Net Expenses)
-    var netProfitBalance = initialBalance + totalReceivedNet - totalExpensesNet;
-
-    // ФАКТИЧЕСКИЙ БАЛАНС (Cash Flow Balance: все деньги, которые прошли через счет)
+    // ФАКТИЧЕСКИЙ БАЛАНС (CASH FLOW: Пришло (Net+IVA) - Ушло (Net+IVA) - Удержанный IRPF)
     var totalCashFlow = (totalReceivedNet + totalReceivedIVA) - (totalExpensesNet + totalExpensesIVA) - totalReceivedRetencion;
     var cashFlowBalance = initialBalance + totalCashFlow;
 
@@ -226,9 +216,8 @@ document.addEventListener('DOMContentLoaded', function(){
     if (requiredOnAccountEl) requiredOnAccountEl.textContent = fmt(requiredOnAccount);
     if (spendableEl) spendableEl.textContent = fmt(spendable);
     
-    // ВЫВОД НОВЫХ БАЛАНСОВ
-    if (netBalDisplay) netBalDisplay.textContent = fmt(netProfitBalance);
-    if (cashFlowBalDisplay) cashFlowBalDisplay.textContent = fmt(cashFlowBalance);
+    // ВЫВОД ЕДИНОГО БАЛАНСА
+    if (bankBalDisplay) bankBalDisplay.textContent = fmt(cashFlowBalance);
 
 
     // уведомление
@@ -360,8 +349,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if (irpfReserveEl) rows.push(['IRPF Аванс/Резерв','', irpfReserveEl.textContent]);
     if (requiredOnAccountEl) rows.push(['Требуется на счёте (резерв)','', requiredOnAccountEl.textContent]);
     if (spendableEl) rows.push(['Доступно к трате','', spendableEl.textContent]);
-    if (netBalDisplay) rows.push(['Чистый баланс (Нетто)','', netBalDisplay.textContent]);
-    if (cashFlowBalDisplay) rows.push(['Фактический Cash Flow Баланс','', cashFlowBalDisplay.textContent]);
+    if (bankBalDisplay) rows.push(['Фактический Cash Flow Баланс','', bankBalDisplay.textContent]);
 
 
     var csv = rows.map(function(r){ return r.map(function(c){ return '"' + String(c).replace(/"/g,'""') + '"'; }).join(','); }).join('\n');
