@@ -102,8 +102,8 @@
         Доступно для траты: <strong id="spendable">0.00</strong> €
       </div>
       <div class="tot">
-        **СЧЁТ (ФАКТИЧЕСКИЙ БАЛАНС):**<br>
-        Всего денег на счету: <strong id="bankBalDisplay">0.00</strong> €
+        **СЧЁТ (ЧИСТЫЙ БАЛАНС):**<br>
+        Всего денег на счету (Нетто): <strong id="bankBalDisplay">0.00</strong> €
       </div>
     </div>
 
@@ -136,7 +136,6 @@ document.addEventListener('DOMContentLoaded', function(){
   var irpfReserveEl = document.getElementById('irpfReserve');
   var requiredOnAccountEl = document.getElementById('requiredOnAccount');
   var spendableEl = document.getElementById('spendable');
-  // ВЕРНУЛИ ID bankBalDisplay
   var bankBalDisplay = document.getElementById('bankBalDisplay'); 
   var notice = document.getElementById('notice');
   var taxRateInput = document.getElementById('taxRateInput');
@@ -199,9 +198,12 @@ document.addEventListener('DOMContentLoaded', function(){
     // 5. ДОСТУПНО К ТРАТЕ И БАЛАНС
     var initialBalance = f(bankBalance.value);
     
-    // ФАКТИЧЕСКИЙ БАЛАНС (CASH FLOW: Пришло (Net+IVA) - Ушло (Net+IVA) - Удержанный IRPF)
+    // ФАКТИЧЕСКИЙ CASH FLOW БАЛАНС (используется для расчета доступных средств, т.к. это реальные деньги на счете)
     var totalCashFlow = (totalReceivedNet + totalReceivedIVA) - (totalExpensesNet + totalExpensesIVA) - totalReceivedRetencion;
     var cashFlowBalance = initialBalance + totalCashFlow;
+
+    // ЧИСТЫЙ БАЛАНС (НЕТТО): ЭТО ЧТО ПОЛЬЗОВАТЕЛЬ ХОЧЕТ ВИДЕТЬ
+    var netProfitBalance = initialBalance + totalReceivedNet - totalExpensesNet;
 
     // Доступно к трате = Фактический Cash Flow Баланс - Требуемый резерв
     var spendable = cashFlowBalance - requiredOnAccount;
@@ -216,8 +218,8 @@ document.addEventListener('DOMContentLoaded', function(){
     if (requiredOnAccountEl) requiredOnAccountEl.textContent = fmt(requiredOnAccount);
     if (spendableEl) spendableEl.textContent = fmt(spendable);
     
-    // ВЫВОД ЕДИНОГО БАЛАНСА
-    if (bankBalDisplay) bankBalDisplay.textContent = fmt(cashFlowBalance);
+    // ВЫВОД ЕДИНОГО БАЛАНСА (НЕТТО)
+    if (bankBalDisplay) bankBalDisplay.textContent = fmt(netProfitBalance);
 
 
     // уведомление
@@ -349,7 +351,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if (irpfReserveEl) rows.push(['IRPF Аванс/Резерв','', irpfReserveEl.textContent]);
     if (requiredOnAccountEl) rows.push(['Требуется на счёте (резерв)','', requiredOnAccountEl.textContent]);
     if (spendableEl) rows.push(['Доступно к трате','', spendableEl.textContent]);
-    if (bankBalDisplay) rows.push(['Фактический Cash Flow Баланс','', bankBalDisplay.textContent]);
+    if (bankBalDisplay) rows.push(['Чистый Баланс (Нетто)','', bankBalDisplay.textContent]);
 
 
     var csv = rows.map(function(r){ return r.map(function(c){ return '"' + String(c).replace(/"/g,'""') + '"'; }).join(','); }).join('\n');
