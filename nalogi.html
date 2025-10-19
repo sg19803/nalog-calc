@@ -69,13 +69,13 @@
         <strong>Расходы (покупки)</strong>
         <table id="expensesTable" style="margin-top:8px">
           <thead>
-            <tr><th class="left">#</th><th class="left" style="width:35%">Описание</th><th>Сумма без IVA (€)</th><th>IVA (21%)</th><th>X</th></tr>
+            <tr><th class="left">#</th><th class="left" style="width:50%">Описание</th><th>Сумма с IVA (€)</th><th>X</th></tr>
           </thead>
           <tbody id="expensesBody"></tbody>
         </table>
         <div style="margin-top:8px">
           <button id="addExpense">Добавить расход</button>
-          <button id="addExpenseSample" class="ghost small">+ Пример (85€ нетто)</button>
+          <button id="addExpenseSample" class="ghost small">+ Пример (102.85€ с IVA)</button>
         </div>
       </div>
     </div>
@@ -165,50 +165,53 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function computeAll(){
-    // [ОСНОВНОЙ КОД РАСЧЕТА]
     updateIndices();
 
     var invRows = Array.prototype.slice.call(invoicesBody.querySelectorAll('tr'));
     var expRows = Array.prototype.slice.call(expensesBody.querySelectorAll('tr'));
 
-    // 1. Считаем суммы NET, IVA и RETENCION
+    // 1. Считаем суммы NET, IVA и RETENCION для ДОХОДОВ
     var totalReceivedNet = invRows.reduce(function(s,tr){ var v = tr.querySelector('.net').value; return s + f(v); }, 0);
     var totalReceivedIVA = invRows.reduce(function(s,tr){ var v = tr.querySelector('.iva').value; return s + f(v); }, 0);
     var totalReceivedRetencion = invRows.reduce(function(s,tr){ var v = tr.querySelector('.retencion').value; return s + f(v); }, 0);
 
-    var totalExpensesNet = expRows.reduce(function(s,tr){ var v = tr.querySelector('.net').value; return s + f(v); }, 0);
-    var totalExpensesIVA = expRows.reduce(function(s,tr){ var v = tr.querySelector('.iva').value; return s + f(v); }, 0);
+    // 2. Считаем суммы NET и IVA для РАСХОДОВ (только по Gross)
+    var totalExpensesGross = expRows.reduce(function(s,tr){ var v = tr.querySelector('.gross').value; return s + f(v); }, 0);
+    
+    // ВЫЧИСЛЕНИЕ NET/IVA из GROSS (Gross = Net * (1 + IVA_RATE))
+    var totalExpensesNet = totalExpensesGross / (1 + IVA_RATE);
+    var totalExpensesIVA = totalExpensesGross - totalExpensesNet; 
     
     var fixed = f(gestor.value) + f(social.value);
 
-    // 2. РАСЧЕТ РЕЗЕРВА IVA (МОДЕЛО 303)
+    // 3. РАСЧЕТ РЕЗЕРВА IVA (МОДЕЛО 303)
     var ivaOwed = totalReceivedIVA - totalExpensesIVA;
 
-    // 3. РАСЧЕТ IRPF
+    // 4. РАСЧЕТ IRPF
     var netProfit = totalReceivedNet - totalExpensesNet - fixed;
     var taxBase = Math.max(0, netProfit * (1 - TAX_DEDUCTION_RATE));
     var irpfAdvance = Math.max(0, netProfit * TAX_RATE); 
     var irpfReserve = Math.max(0, irpfAdvance - totalReceivedRetencion);
     var irpfRefundPotential = Math.max(0, totalReceivedRetencion - irpfAdvance); 
 
-    // 4. ФИНАЛЬНЫЕ РЕЗЕРВЫ
+    // 5. ФИНАЛЬНЫЕ РЕЗЕРВЫ
     var totalTaxReserve = Math.max(0, ivaOwed) + irpfReserve; 
     var requiredOnAccount = totalTaxReserve + fixed;
 
-    // 5. ДОСТУПНО К ТРАТЕ И БАЛАНС
+    // 6. ДОСТУПНО К ТРАТЕ И БАЛАНС
     var initialBalance = f(bankBalance.value);
     
     // ФАКТИЧЕСКИЙ CASH FLOW БАЛАНС (используется для расчета доступных средств, т.к. это реальные деньги на счете)
     var totalCashFlow = (totalReceivedNet + totalReceivedIVA) - (totalExpensesNet + totalExpensesIVA) - totalReceivedRetencion;
     var cashFlowBalance = initialBalance + totalCashFlow;
 
-    // ЧИСТЫЙ БАЛАНС (НЕТТО): ЭТО ЧТО ПОЛЬЗОВАТЕЛЬ ХОЧЕТ ВИДЕТЬ
+    // ЧИСТЫЙ БАЛАНС (НЕТТО): То, что пользователь хочет видеть (только нетто доходы минус нетто расходы)
     var netProfitBalance = initialBalance + totalReceivedNet - totalExpensesNet;
 
     // Доступно к трате = Фактический Cash Flow Баланс - Требуемый резерв
     var spendable = cashFlowBalance - requiredOnAccount;
 
-    // вывод значений (Проверка на null, чтобы не было ошибки)
+    // вывод значений
     if (totalReceivedEl) totalReceivedEl.textContent = fmt(totalReceivedNet);
     if (totalExpensesEl) totalExpensesEl.textContent = fmt(totalExpensesNet);
     if (totalFixedEl) totalFixedEl.textContent = fmt(fixed);
@@ -242,6 +245,7 @@ document.addEventListener('DOMContentLoaded', function(){
     var iva = f(data && data.iva) || (net > 0 ? net * IVA_RATE : 0);
     var retencion = f(data && data.retencion) || 0;
     
+    // Для обратной совместимости при загрузке старых данных
     if (data && data.amount && !data.net) {
       net = f(data.amount);
       iva = net * IVA_RATE;
@@ -270,19 +274,13 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!expensesBody) return; 
     var tr = document.createElement('tr');
     
-    var net = f(data && data.net) || f(data && data.amount) || 0;
-    var iva = f(data && data.iva) || (net > 0 ? net * IVA_RATE : 0);
-    
-    if (data && data.amount && !data.net) {
-      net = f(data.amount);
-      iva = net * IVA_RATE;
-    }
+    // ВВОДИТСЯ ТОЛЬКО GROSS СУММА
+    var gross = f(data && data.gross) || f(data && data.amount) || 0; 
     
     tr.innerHTML = `
       <td class="left"></td>
       <td class="left"><input class="left" type="text" value="${(data && data.desc) || ''}" placeholder="описание"></td>
-      <td><input type="number" step="0.01" value="${net.toFixed(2)}" class="net" placeholder="Нетто" /></td>
-      <td><input type="number" step="0.01" value="${iva.toFixed(2)}" class="iva" placeholder="IVA 21%" /></td>
+      <td><input type="number" step="0.01" value="${gross.toFixed(2)}" class="gross" placeholder="Сумма с IVA" /></td>
       <td><button class="ghost small">—</button></td>
     `;
     expensesBody.appendChild(tr); 
@@ -296,13 +294,16 @@ document.addEventListener('DOMContentLoaded', function(){
     computeAll();
   }
 
-  // **ПОВЫШЕННАЯ СТАБИЛЬНОСТЬ: НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ**
+  // **НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ**
   
   if (addInvoice) addInvoice.addEventListener('click', function(){ createInvoice({}); });
   if (addInvoiceSample) addInvoiceSample.addEventListener('click', function(){ invoicesBody.innerHTML=''; createInvoice({desc:'Название фактуры (Пример, 15% удерж.)', net:1200, iva:1200*IVA_RATE, retencion:1200*0.15}); computeAll(); });
   
-  if (addExpense) addExpense.addEventListener('click', function(){ expensesBody.innerHTML=''; createExpense({}); });
-  if (addExpenseSample) addExpenseSample.addEventListener('click', function(){ expensesBody.innerHTML=''; createExpense({desc:'Покупка', net:85, iva:85*IVA_RATE}); computeAll(); });
+  // ИСПРАВЛЕНО: УБРАНО expensesBody.innerHTML='';
+  if (addExpense) addExpense.addEventListener('click', function(){ createExpense({}); }); 
+  
+  // Пример расхода: 85 нетто + 17.85 IVA = 102.85 GROSS
+  if (addExpenseSample) addExpenseSample.addEventListener('click', function(){ expensesBody.innerHTML=''; createExpense({desc:'Покупка', gross: 102.85}); computeAll(); });
 
   // следим за изменением стартового баланса и фикс. расходов
   var inputsWatch = [gestor, social, bankBalance];
@@ -332,13 +333,13 @@ document.addEventListener('DOMContentLoaded', function(){
     });
     rows.push([]);
     rows.push(['Расходы']);
-    rows.push(['#','Описание','Сумма (Нетто)','IVA']);
+    // ИЗМЕНЕНО: Заголовок для CSV
+    rows.push(['#','Описание','Сумма с IVA']); 
     Array.prototype.slice.call(expensesBody.children).forEach(function(tr,i){ 
         rows.push([
             i+1, 
             tr.children[1].querySelector('input').value, 
-            tr.children[2].querySelector('.net').value, 
-            tr.children[3].querySelector('.iva').value
+            tr.children[2].querySelector('.gross').value 
         ]); 
     });
     rows.push([]);
@@ -374,8 +375,7 @@ document.addEventListener('DOMContentLoaded', function(){
       expenses: Array.prototype.slice.call(expensesBody.children).map(function(tr){ 
         return {
             desc: tr.children[1].querySelector('input').value, 
-            net: tr.children[2].querySelector('.net').value, 
-            iva: tr.children[3].querySelector('.iva').value
+            gross: tr.children[2].querySelector('.gross').value 
         }; 
       })
     };
@@ -409,8 +409,8 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // СТАРТОВЫЕ ПРИМЕРЫ (запускаются только при пустом калькуляторе)
   if(invoicesBody && expensesBody && invoicesBody.children.length === 0 && expensesBody.children.length === 0) {
-    createInvoice({desc:'Оплата от клиента (Пример, 15% удерж.)', net: 1200, iva: 1200 * IVA_RATE, retencion: 1200*0.15}); // Здесь IRPF УДЕРЖАН
-    createExpense({desc:'HDD', net: 85, iva: 85 * IVA_RATE});
+    createInvoice({desc:'Оплата от клиента (Пример, 15% удерж.)', net: 1200, iva: 1200 * IVA_RATE, retencion: 1200*0.15}); 
+    createExpense({desc:'Покупка', gross: 102.85});
     computeAll();
   }
 });
