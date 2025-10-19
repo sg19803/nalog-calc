@@ -161,36 +161,42 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function computeAll(){
-    updateIndices();
-    var invRows = Array.prototype.slice.call(invoicesBody.querySelectorAll('tr'));
-    var expRows = Array.prototype.slice.call(expensesBody.querySelectorAll('tr'));
+  updateIndices();
+  var invRows = Array.prototype.slice.call(invoicesBody.querySelectorAll('tr'));
+  var expRows = Array.prototype.slice.call(expensesBody.querySelectorAll('tr'));
 
-    var totalReceived = invRows.reduce(function(s,tr){ var v = tr.children[2].querySelector('input').value; return s + f(v); }, 0);
-    var totalExpenses = expRows.reduce(function(s,tr){ var v = tr.children[2].querySelector('input').value; return s + f(v); }, 0);
-    var fixed = f(gestor.value) + f(social.value);
+  var totalReceived = invRows.reduce(function(s,tr){ var v = tr.children[2].querySelector('input').value; return s + f(v); }, 0);
+  var totalExpenses = expRows.reduce(function(s,tr){ var v = tr.children[2].querySelector('input').value; return s + f(v); }, 0);
+  var fixed = f(gestor.value) + f(social.value);
 
-    var taxBase = Math.max(0, totalReceived - totalExpenses - fixed);
-    var taxReserve = taxBase * TAX_RATE;
-    var requiredOnAccount = taxReserve + fixed;
-    var spendable = totalReceived - totalExpenses - requiredOnAccount;
+  // расчёт налога
+  var taxBase = Math.max(0, totalReceived - totalExpenses - fixed);
+  var taxReserve = taxBase * TAX_RATE;
+  var requiredOnAccount = taxReserve + fixed;
+  var spendable = totalReceived - totalExpenses - requiredOnAccount;
 
-    totalReceivedEl.textContent = fmt(totalReceived);
-    totalExpensesEl.textContent = fmt(totalExpenses);
-    totalFixedEl.textContent = fmt(fixed);
-    taxBaseEl.textContent = fmt(taxBase);
-    taxReserveEl.textContent = fmt(taxReserve);
-    requiredOnAccountEl.textContent = fmt(requiredOnAccount);
-    spendableEl.textContent = fmt(spendable);
-    bankBalDisplay.textContent = fmt(f(bankBalance.value));
+  // новый расчёт баланса
+  var initialBalance = f(bankBalance.value);
+  var finalBalance = initialBalance + totalReceived - totalExpenses;
 
-    var bal = f(bankBalance.value);
-    if(bal < requiredOnAccount){
-      notice.innerHTML = '<strong class="warn">Внимание:</strong> на счёте недостаточно средств для покрытия резерва на налог и фикс. платежи. Необход. ' + fmt(requiredOnAccount - bal) + ' €';
-    } else {
-      var freely = bal - requiredOnAccount;
-      notice.innerHTML = '<strong class="ok">ОК:</strong> на счёте достаточно. Можно потратить примерно ' + fmt(freely) + ' € (после резерва на налог и фикс.).';
-    }
+  // вывод значений
+  totalReceivedEl.textContent = fmt(totalReceived);
+  totalExpensesEl.textContent = fmt(totalExpenses);
+  totalFixedEl.textContent = fmt(fixed);
+  taxBaseEl.textContent = fmt(taxBase);
+  taxReserveEl.textContent = fmt(taxReserve);
+  requiredOnAccountEl.textContent = fmt(requiredOnAccount);
+  spendableEl.textContent = fmt(spendable);
+  bankBalDisplay.textContent = fmt(finalBalance);
+
+  // проверка средств
+  if(finalBalance < requiredOnAccount){
+    notice.innerHTML = '<strong class="warn">Внимание:</strong> на счёте недостаточно средств для покрытия резерва на налог и фикс. платежей. Необходимо ' + fmt(requiredOnAccount - finalBalance) + ' €';
+  } else {
+    var freely = finalBalance - requiredOnAccount;
+    notice.innerHTML = '<strong class="ok">ОК:</strong> на счёте достаточно. Можно потратить примерно ' + fmt(freely) + ' € (после резерва на налог и фикс.).';
   }
+}
 
   // события
   addInvoice.addEventListener('click', function(){ createInvoice({}); });
@@ -256,4 +262,5 @@ document.addEventListener('DOMContentLoaded', function(){
 </script>
 </body>
 </html>
+
 
