@@ -96,7 +96,6 @@
   </div>
 
 <script>
-// рабочая, простая и совместимая версия — оборачиваем в DOMContentLoaded
 document.addEventListener('DOMContentLoaded', function(){
   var invoicesBody = document.getElementById('invoicesBody');
   var expensesBody = document.getElementById('expensesBody');
@@ -135,20 +134,26 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function createInvoice(data){
     var tr = document.createElement('tr');
-    tr.innerHTML = '\n      <td class="left"></td>\n      <td class="left"><input class="left" type="text" value="' + ((data && data.desc) || '') + '" placeholder="описание"></td>\n      <td><input type="number" step="0.01" value="' + ((data && data.amount) || '') + '" /></td>\n      <td><button class="ghost small">—</button></td>\n    ';
+    tr.innerHTML = '\n      <td class="left"></td>\n      <td class="left"><input class="left" type="text" value="' + ((data && data.desc) || '') + '" placeholder="описание"></td>\n      <td><input type="number" step="0.01" value="' + ( (data && (data.amount||data.gross)) || '' ) + '" /></td>\n      <td><button class="ghost small">—</button></td>\n    ';
     invoicesBody.appendChild(tr);
     var inputs = tr.querySelectorAll('input');
-    for(var i=0;i<inputs.length;i++) inputs[i].addEventListener('input', computeAll);
+    for(var i=0;i<inputs.length;i++) {
+      inputs[i].addEventListener('input', computeAll);
+      inputs[i].addEventListener('change', computeAll);
+    }
     tr.querySelector('button').addEventListener('click', function(){ tr.remove(); computeAll(); });
     computeAll();
   }
 
   function createExpense(data){
     var tr = document.createElement('tr');
-    tr.innerHTML = '\n      <td class="left"></td>\n      <td class="left"><input class="left" type="text" value="' + ((data && data.desc) || '') + '" placeholder="описание"></td>\n      <td><input type="number" step="0.01" value="' + ((data && data.amount) || '') + '"/></td>\n      <td><button class="ghost small">—</button></td>\n    ';
+    tr.innerHTML = '\n      <td class="left"></td>\n      <td class="left"><input class="left" type="text" value="' + ((data && data.desc) || '') + '" placeholder="описание"></td>\n      <td><input type="number" step="0.01" value="' + ( (data && (data.amount||data.gross)) || '' ) + '"/></td>\n      <td><button class="ghost small">—</button></td>\n    ';
     expensesBody.appendChild(tr);
     var inputs = tr.querySelectorAll('input');
-    for(var i=0;i<inputs.length;i++) inputs[i].addEventListener('input', computeAll);
+    for(var i=0;i<inputs.length;i++){
+      inputs[i].addEventListener('input', computeAll);
+      inputs[i].addEventListener('change', computeAll);
+    }
     tr.querySelector('button').addEventListener('click', function(){ tr.remove(); computeAll(); });
     computeAll();
   }
@@ -161,51 +166,59 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function computeAll(){
-  updateIndices();
-  var invRows = Array.prototype.slice.call(invoicesBody.querySelectorAll('tr'));
-  var expRows = Array.prototype.slice.call(expensesBody.querySelectorAll('tr'));
+    // обновляем порядковые номера
+    updateIndices();
 
-  var totalReceived = invRows.reduce(function(s,tr){ var v = tr.children[2].querySelector('input').value; return s + f(v); }, 0);
-  var totalExpenses = expRows.reduce(function(s,tr){ var v = tr.children[2].querySelector('input').value; return s + f(v); }, 0);
-  var fixed = f(gestor.value) + f(social.value);
+    // собираем строки
+    var invRows = Array.prototype.slice.call(invoicesBody.querySelectorAll('tr'));
+    var expRows = Array.prototype.slice.call(expensesBody.querySelectorAll('tr'));
 
-  // расчёт налога
-  var taxBase = Math.max(0, totalReceived - totalExpenses - fixed);
-  var taxReserve = taxBase * TAX_RATE;
-  var requiredOnAccount = taxReserve + fixed;
-  var spendable = totalReceived - totalExpenses - requiredOnAccount;
+    // считаем суммы
+    var totalReceived = invRows.reduce(function(s,tr){ var v = tr.children[2].querySelector('input').value; return s + f(v); }, 0);
+    var totalExpenses = expRows.reduce(function(s,tr){ var v = tr.children[2].querySelector('input').value; return s + f(v); }, 0);
+    var fixed = f(gestor.value) + f(social.value);
 
-  // новый расчёт баланса
-  var initialBalance = f(bankBalance.value);
-  var finalBalance = initialBalance + totalReceived - totalExpenses;
+    // расчёт налоговой базы и резерва
+    var taxBase = Math.max(0, totalReceived - totalExpenses - fixed);
+    var taxReserve = taxBase * TAX_RATE;
+    var requiredOnAccount = taxReserve + fixed;
+    var spendable = totalReceived - totalExpenses - requiredOnAccount;
 
-  // вывод значений
-  totalReceivedEl.textContent = fmt(totalReceived);
-  totalExpensesEl.textContent = fmt(totalExpenses);
-  totalFixedEl.textContent = fmt(fixed);
-  taxBaseEl.textContent = fmt(taxBase);
-  taxReserveEl.textContent = fmt(taxReserve);
-  requiredOnAccountEl.textContent = fmt(requiredOnAccount);
-  spendableEl.textContent = fmt(spendable);
-  bankBalDisplay.textContent = fmt(finalBalance);
+    // финальный баланс: введённый стартовый + получено - расходы
+    var initialBalance = f(bankBalance.value);
+    var finalBalance = initialBalance + totalReceived - totalExpenses;
 
-  // проверка средств
-  if(finalBalance < requiredOnAccount){
-    notice.innerHTML = '<strong class="warn">Внимание:</strong> на счёте недостаточно средств для покрытия резерва на налог и фикс. платежей. Необходимо ' + fmt(requiredOnAccount - finalBalance) + ' €';
-  } else {
-    var freely = finalBalance - requiredOnAccount;
-    notice.innerHTML = '<strong class="ok">ОК:</strong> на счёте достаточно. Можно потратить примерно ' + fmt(freely) + ' € (после резерва на налог и фикс.).';
+    // вывод значений
+    totalReceivedEl.textContent = fmt(totalReceived);
+    totalExpensesEl.textContent = fmt(totalExpenses);
+    totalFixedEl.textContent = fmt(fixed);
+    taxBaseEl.textContent = fmt(taxBase);
+    taxReserveEl.textContent = fmt(taxReserve);
+    requiredOnAccountEl.textContent = fmt(requiredOnAccount);
+    spendableEl.textContent = fmt(spendable);
+    bankBalDisplay.textContent = fmt(finalBalance);
+
+    // уведомление о достаточности средств
+    if(finalBalance < requiredOnAccount){
+      notice.innerHTML = '<strong class="warn">Внимание:</strong> на счёте недостаточно средств для покрытия резерва на налог и фикс. платежи. Необходимо ' + fmt(requiredOnAccount - finalBalance) + ' €';
+    } else {
+      var freely = finalBalance - requiredOnAccount;
+      notice.innerHTML = '<strong class="ok">ОК:</strong> на счёте достаточно. Можно потратить примерно ' + fmt(freely) + ' € (после резерва на налог и фикс.).';
+    }
   }
-}
 
   // события
   addInvoice.addEventListener('click', function(){ createInvoice({}); });
-  addInvoiceSample.addEventListener('click', function(){ invoicesBody.innerHTML=''; createInvoice({desc:'Название фактуры', amount:'1200'}); computeAll(); });
+  addInvoiceSample.addEventListener('click', function(){ invoicesBody.innerHTML=''; createInvoice({desc:'Название фактуры', amount:1200}); computeAll(); });
   addExpense.addEventListener('click', function(){ createExpense({}); });
-  addExpenseSample.addEventListener('click', function(){ expensesBody.innerHTML=''; createExpense({desc:'Покупка', amount:'85'}); computeAll(); });
+  addExpenseSample.addEventListener('click', function(){ expensesBody.innerHTML=''; createExpense({desc:'Покупка', amount:85}); computeAll(); });
 
+  // следим за изменением стартового баланса и фикс. расходов
   var inputsWatch = [gestor, social, bankBalance];
-  for(var k=0;k<inputsWatch.length;k++) inputsWatch[k].addEventListener('input', computeAll);
+  for(var k=0;k<inputsWatch.length;k++){
+    inputsWatch[k].addEventListener('input', computeAll);
+    inputsWatch[k].addEventListener('change', computeAll);
+  }
 
   editTax.addEventListener('click', function(){ taxEdit.style.display='block'; });
   cancelTax.addEventListener('click', function(){ taxEdit.style.display='none'; });
@@ -254,13 +267,12 @@ document.addEventListener('DOMContentLoaded', function(){
 
   clearAll.addEventListener('click', function(){ if(confirm('Очистить всё?')){ invoicesBody.innerHTML=''; expensesBody.innerHTML=''; computeAll(); } });
 
-  createInvoice({desc:'Оплата от клиента (Кипр)', amount:'1200'});
-  createExpense({desc:'HDD', amount:'85'});
+  // стартовые примеры
+  createInvoice({desc:'Оплата от клиента (Кипр)', amount:1200});
+  createExpense({desc:'HDD', amount:85});
   computeAll();
 
 });
 </script>
 </body>
 </html>
-
-
