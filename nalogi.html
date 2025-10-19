@@ -102,8 +102,12 @@
         Доступно для траты: <strong id="spendable">0.00</strong> €
       </div>
       <div class="tot">
-        **СЧЁТ:**<br>
-        Финальный баланс счёта: <strong id="bankBalDisplay">0.00</strong> €
+        **ДОХОД/РАСХОД (НЕТТО):**<br>
+        Чистый баланс (как просили): <strong id="netBalDisplay">0.00</strong> €
+      </div>
+      <div class="tot">
+        **СЧЁТ (ФАКТИЧЕСКИЙ БАЛАНС):**<br>
+        Баланс с учётом IVA/IRPF: <strong id="cashFlowBalDisplay">0.00</strong> €
       </div>
     </div>
 
@@ -136,7 +140,6 @@ document.addEventListener('DOMContentLoaded', function(){
   var irpfReserveEl = document.getElementById('irpfReserve');
   var requiredOnAccountEl = document.getElementById('requiredOnAccount');
   var spendableEl = document.getElementById('spendable');
-  var bankBalDisplay = document.getElementById('bankBalDisplay');
   var notice = document.getElementById('notice');
   var taxRateInput = document.getElementById('taxRateInput');
   var taxRateLabel = document.getElementById('taxRateLabel');
@@ -149,6 +152,11 @@ document.addEventListener('DOMContentLoaded', function(){
   var saveLocal = document.getElementById('saveLocal');
   var loadLocal = document.getElementById('loadLocal');
   var clearAll = document.getElementById('clearAll');
+
+  // НОВЫЕ ЭЛЕМЕНТЫ ДЛЯ ВЫВОДА
+  var netBalDisplay = document.getElementById('netBalDisplay');
+  var cashFlowBalDisplay = document.getElementById('cashFlowBalDisplay');
+
 
   var TAX_RATE = 0.20; // 20% - IRPF quarterly advance (Modelo 130)
   var IVA_RATE = 0.21; // 21% - Standard IVA rate
@@ -197,9 +205,16 @@ document.addEventListener('DOMContentLoaded', function(){
 
     // 5. ДОСТУПНО К ТРАТЕ И БАЛАНС
     var initialBalance = f(bankBalance.value);
+    
+    // НЕТТО-БАЛАНС (по запросу пользователя: только Net Income - Net Expenses)
+    var netProfitBalance = initialBalance + totalReceivedNet - totalExpensesNet;
+
+    // ФАКТИЧЕСКИЙ БАЛАНС (Cash Flow Balance: все деньги, которые прошли через счет)
     var totalCashFlow = (totalReceivedNet + totalReceivedIVA) - (totalExpensesNet + totalExpensesIVA) - totalReceivedRetencion;
-    var finalBalance = initialBalance + totalCashFlow;
-    var spendable = finalBalance - requiredOnAccount;
+    var cashFlowBalance = initialBalance + totalCashFlow;
+
+    // Доступно к трате = Фактический Cash Flow Баланс - Требуемый резерв
+    var spendable = cashFlowBalance - requiredOnAccount;
 
     // вывод значений (Проверка на null, чтобы не было ошибки)
     if (totalReceivedEl) totalReceivedEl.textContent = fmt(totalReceivedNet);
@@ -210,14 +225,18 @@ document.addEventListener('DOMContentLoaded', function(){
     if (irpfReserveEl) irpfReserveEl.textContent = fmt(irpfReserve);
     if (requiredOnAccountEl) requiredOnAccountEl.textContent = fmt(requiredOnAccount);
     if (spendableEl) spendableEl.textContent = fmt(spendable);
-    if (bankBalDisplay) bankBalDisplay.textContent = fmt(finalBalance);
+    
+    // ВЫВОД НОВЫХ БАЛАНСОВ
+    if (netBalDisplay) netBalDisplay.textContent = fmt(netProfitBalance);
+    if (cashFlowBalDisplay) cashFlowBalDisplay.textContent = fmt(cashFlowBalance);
+
 
     // уведомление
     if(notice) {
-        if(finalBalance < requiredOnAccount){
-          notice.innerHTML = '<strong class="warn">Внимание:</strong> на счёте недостаточно средств для покрытия резерва на налоги и фикс. платежи. Необходимо отложить: ' + fmt(requiredOnAccount) + ' € (На счету: ' + fmt(finalBalance) + ' €). Недостаёт: ' + fmt(requiredOnAccount - finalBalance) + ' €';
+        if(cashFlowBalance < requiredOnAccount){
+          notice.innerHTML = '<strong class="warn">Внимание:</strong> на счёте недостаточно средств для покрытия резерва на налоги и фикс. платежи. Необходимо отложить: ' + fmt(requiredOnAccount) + ' € (На счету: ' + fmt(cashFlowBalance) + ' €). Недостаёт: ' + fmt(requiredOnAccount - cashFlowBalance) + ' €';
         } else {
-          var freely = finalBalance - requiredOnAccount;
+          var freely = cashFlowBalance - requiredOnAccount;
           var refundNote = irpfRefundPotential > 0 ? '. Возможно, будет возврат IRPF: ' + fmt(irpfRefundPotential) + ' € (за счёт переплаченных удержаний).' : '';
           notice.innerHTML = '<strong class="ok">ОК:</strong> на счёте достаточно. Можно потратить примерно ' + fmt(freely) + ' € (после резерва на налог и фикс.)' + refundNote;
         }
@@ -225,7 +244,7 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function createInvoice(data){
-    if (!invoicesBody) return; // Защита от сбоя
+    if (!invoicesBody) return; 
     var tr = document.createElement('tr');
     
     var net = f(data && data.net) || f(data && data.amount) || 0;
@@ -257,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function createExpense(data){
-    if (!expensesBody) return; // Защита от сбоя
+    if (!expensesBody) return; 
     var tr = document.createElement('tr');
     
     var net = f(data && data.net) || f(data && data.amount) || 0;
@@ -291,13 +310,13 @@ document.addEventListener('DOMContentLoaded', function(){
   if (addInvoice) addInvoice.addEventListener('click', function(){ createInvoice({}); });
   if (addInvoiceSample) addInvoiceSample.addEventListener('click', function(){ invoicesBody.innerHTML=''; createInvoice({desc:'Название фактуры (Пример, 15% удерж.)', net:1200, iva:1200*IVA_RATE, retencion:1200*0.15}); computeAll(); });
   
-  if (addExpense) addExpense.addEventListener('click', function(){ createExpense({}); });
+  if (addExpense) addExpense.addEventListener('click', function(){ expensesBody.innerHTML=''; createExpense({}); });
   if (addExpenseSample) addExpenseSample.addEventListener('click', function(){ expensesBody.innerHTML=''; createExpense({desc:'Покупка', net:85, iva:85*IVA_RATE}); computeAll(); });
 
   // следим за изменением стартового баланса и фикс. расходов
   var inputsWatch = [gestor, social, bankBalance];
   for(var k=0;k<inputsWatch.length;k++){
-      if(inputsWatch[k]){ // Проверка на существование
+      if(inputsWatch[k]){ 
           inputsWatch[k].addEventListener('input', computeAll);
           inputsWatch[k].addEventListener('change', computeAll);
       }
@@ -307,10 +326,7 @@ document.addEventListener('DOMContentLoaded', function(){
   if (cancelTax) cancelTax.addEventListener('click', function(){ if(taxEdit) taxEdit.style.display='none'; });
   if (saveTax) saveTax.addEventListener('click', function(){ TAX_RATE = f(taxRateInput.value)/100; if(taxRateLabel) taxRateLabel.textContent = (TAX_RATE*100).toFixed(2) + '%'; if(taxRateDisplay) taxRateDisplay.textContent = (TAX_RATE*100).toFixed(2) + '%'; if(taxEdit) taxEdit.style.display='none'; computeAll(); });
 
-  // ... (Остальные функции export/save/load/clear остались без изменений, но их вызовы тоже лучше обернуть в if)
-
   if (exportCSVBtn) exportCSVBtn.addEventListener('click', function(){
-    // [Код экспорта CSV]
     var rows = [];
     rows.push(['Доходы']);
     rows.push(['#','Описание','Сумма (Нетто)','IVA','Удержание IRPF']);
@@ -336,14 +352,17 @@ document.addEventListener('DOMContentLoaded', function(){
     });
     rows.push([]);
     rows.push(['Итоги','','']);
-    rows.push(['Итого получено (Нетто)','', totalReceivedEl.textContent]);
-    rows.push(['Итого расходы (Нетто)','', totalExpensesEl.textContent]);
-    rows.push(['Фикс. расходы','', totalFixedEl.textContent]);
-    rows.push(['Налогооблаг. база (с 7% вычетом)','', taxBaseEl.textContent]);
-    rows.push(['IVA к уплате (резерв)','', ivaOwedEl.textContent]);
-    rows.push(['IRPF Аванс/Резерв','', irpfReserveEl.textContent]);
-    rows.push(['Требуется на счёте (резерв)','', requiredOnAccountEl.textContent]);
-    rows.push(['Доступно к трате','', spendableEl.textContent]);
+    if (totalReceivedEl) rows.push(['Итого получено (Нетто)','', totalReceivedEl.textContent]);
+    if (totalExpensesEl) rows.push(['Итого расходы (Нетто)','', totalExpensesEl.textContent]);
+    if (totalFixedEl) rows.push(['Фикс. расходы','', totalFixedEl.textContent]);
+    if (taxBaseEl) rows.push(['Налогооблаг. база (с 7% вычетом)','', taxBaseEl.textContent]);
+    if (ivaOwedEl) rows.push(['IVA к уплате (резерв)','', ivaOwedEl.textContent]);
+    if (irpfReserveEl) rows.push(['IRPF Аванс/Резерв','', irpfReserveEl.textContent]);
+    if (requiredOnAccountEl) rows.push(['Требуется на счёте (резерв)','', requiredOnAccountEl.textContent]);
+    if (spendableEl) rows.push(['Доступно к трате','', spendableEl.textContent]);
+    if (netBalDisplay) rows.push(['Чистый баланс (Нетто)','', netBalDisplay.textContent]);
+    if (cashFlowBalDisplay) rows.push(['Фактический Cash Flow Баланс','', cashFlowBalDisplay.textContent]);
+
 
     var csv = rows.map(function(r){ return r.map(function(c){ return '"' + String(c).replace(/"/g,'""') + '"'; }).join(','); }).join('\n');
     var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
