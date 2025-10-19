@@ -419,7 +419,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // СТАРТОВЫЕ ПРИМЕРЫ (запускаются только при пустом калькуляторе)
   if(invoicesBody && expensesBody && invoicesBody.children.length === 0 && expensesBody.children.length === 0) {
-    createInvoice({desc:'Оплата от клиента (без удержаний IRPF)', net: 1200, iva: 1200 * IVA_RATE, retencion: 0});
+    createInvoice({desc:'Оплата от клиента (Пример, 15% удерж.)', net: 1200, iva: 1200 * IVA_RATE, retencion: 1200*0.15}); // Здесь IRPF УДЕРЖАН
     createExpense({desc:'HDD', net: 85, iva: 85 * IVA_RATE});
     computeAll();
   }
