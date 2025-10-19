@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Калькулятор доступных средств — превью в Canvas</title>
+  <style>
+    :root{font-family:Arial,Helvetica,sans-serif;font-size:14px}
+    body{margin:18px;background:#f6f7fb;color:#111}
+    .card{background:#fff;padding:14px;border-radius:10px;box-shadow:0 8px 30px rgba(20,30,60,.06);max-width:1100px;margin:auto}
+    h1{font-size:18px;margin:0 0 10px}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{padding:8px;border:1px solid #e6e9f0;text-align:right}
+    th{background:#fafbff;font-weight:600}
+    th.left,td.left{text-align:left}
+    input[type=text], input[type=number]{width:100%;box-sizing:border-box;padding:6px;border:0;background:transparent;text-align:right}
+    input[type=text].left, input[type=number].left{text-align:left}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    button{background:#0b5fff;color:#fff;border:0;padding:8px 12px;border-radius:6px;cursor:pointer}
+    button.ghost{background:transparent;color:#0b5fff;border:1px solid #d6defc}
+    .muted{color:#666;font-size:13px}
+    .totals{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .tot{background:#f2f7ff;padding:8px 10px;border-radius:8px}
+    .warn{color:#b33}
+    .ok{color:#0a6f36}
+    .small{font-size:13px;padding:6px 10px}
+    .right{margin-left:auto}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Калькулятор доступных средств — превью</h1>
+    <div class="muted">Платежи с Кипра: считаем без IVA/удержаний. Проверьте функционал — добавление строк, ввод сумм, экспорт и сохранение.</div>
+
+    <div style="display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap">
+      <label>Оплата гестора (месяц) €: <input id="gestor" type="number" step="0.01" value="50" /></label>
+      <label>Seguridad Social (месяц) €: <input id="social" type="number" step="0.01" value="87.61" /></label>
+      <label>Текущий баланс на счёте €: <input id="bankBalance" type="number" step="0.01" value="1200" /></label>
+      <div class="right muted">Налоговая ставка (резерв): <strong id="taxRateLabel">20%</strong> <button id="editTax" class="ghost small">Изменить</button></div>
+    </div>
+
+    <div id="taxEdit" style="display:none;margin-top:8px">
+      <label>Ставка налога (например, 20 → 20%): <input id="taxRateInput" type="number" step="0.01" value="20" /></label>
+      <button id="saveTax" class="ghost small">Сохранить</button>
+      <button id="cancelTax" class="ghost small">Отмена</button>
+    </div>
+
+    <div class="controls">
+      <div style="flex:1 1 600px">
+        <strong>Счета / доходы (получено)</strong>
+        <table id="invoicesTable" style="margin-top:8px">
+          <thead>
+            <tr><th class="left">#</th><th class="left">Описание</th><th>Сумма (€)</th><th>X</th></tr>
+          </thead>
+          <tbody id="invoicesBody"></tbody>
+        </table>
+        <div style="margin-top:8px">
+          <button id="addInvoice">Добавить платёж</button>
+          <button id="addInvoiceSample" class="ghost small">+ Пример 1200€</button>
+        </div>
+      </div>
+
+      <div style="flex:1 1 420px">
+        <strong>Расходы (покупки)</strong>
+        <table id="expensesTable" style="margin-top:8px">
+          <thead>
+            <tr><th class="left">#</th><th class="left">Описание</th><th>Сумма (€)</th><th>X</th></tr>
+          </thead>
+          <tbody id="expensesBody"></tbody>
+        </table>
+        <div style="margin-top:8px">
+          <button id="addExpense">Добавить расход</button>
+          <button id="addExpenseSample" class="ghost small">+ Пример 85€</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="totals">
+      <div class="tot">Итого получено: <strong id="totalReceived">0.00</strong> €</div>
+      <div class="tot">Итого расходы: <strong id="totalExpenses">0.00</strong> €</div>
+      <div class="tot">Фикс. расходы: <strong id="totalFixed">0.00</strong> €</div>
+      <div class="tot">Налоговая база: <strong id="taxBase">0.00</strong> €</div>
+      <div class="tot">Резерв на налог (<span id="taxRateDisplay">20%</span>): <strong id="taxReserve">0.00</strong> €</div>
+      <div class="tot">Требуется на счёте (резерв налога + фикс.): <strong id="requiredOnAccount">0.00</strong> €</div>
+      <div class="tot">Доступно для траты: <strong id="spendable">0.00</strong> €</div>
+      <div class="tot">Баланс счёта: <strong id="bankBalDisplay">0.00</strong> €</div>
+    </div>
+
+    <div style="margin-top:12px">
+      <button id="exportCSV" class="ghost small">Экспорт CSV</button>
+      <button id="saveLocal" class="ghost small">Сохранить</button>
+      <button id="loadLocal" class="ghost small">Загрузить</button>
+      <button id="clearAll" class="ghost small">Очистить всё</button>
+      <div id="notice" style="margin-top:8px" class="muted"></div>
+    </div>
+  </div>
+
+<script>
+// рабочая, простая и совместимая версия — оборачиваем в DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function(){
+  var invoicesBody = document.getElementById('invoicesBody');
+  var expensesBody = document.getElementById('expensesBody');
+  var addInvoice = document.getElementById('addInvoice');
+  var addInvoiceSample = document.getElementById('addInvoiceSample');
+  var addExpense = document.getElementById('addExpense');
+  var addExpenseSample = document.getElementById('addExpenseSample');
+  var gestor = document.getElementById('gestor');
+  var social = document.getElementById('social');
+  var bankBalance = document.getElementById('bankBalance');
+  var totalReceivedEl = document.getElementById('totalReceived');
+  var totalExpensesEl = document.getElementById('totalExpenses');
+  var totalFixedEl = document.getElementById('totalFixed');
+  var taxBaseEl = document.getElementById('taxBase');
+  var taxReserveEl = document.getElementById('taxReserve');
+  var requiredOnAccountEl = document.getElementById('requiredOnAccount');
+  var spendableEl = document.getElementById('spendable');
+  var bankBalDisplay = document.getElementById('bankBalDisplay');
+  var notice = document.getElementById('notice');
+  var taxRateInput = document.getElementById('taxRateInput');
+  var taxRateLabel = document.getElementById('taxRateLabel');
+  var taxRateDisplay = document.getElementById('taxRateDisplay');
+  var editTax = document.getElementById('editTax');
+  var taxEdit = document.getElementById('taxEdit');
+  var saveTax = document.getElementById('saveTax');
+  var cancelTax = document.getElementById('cancelTax');
+  var exportCSVBtn = document.getElementById('exportCSV');
+  var saveLocal = document.getElementById('saveLocal');
+  var loadLocal = document.getElementById('loadLocal');
+  var clearAll = document.getElementById('clearAll');
+
+  var TAX_RATE = 0.20;
+
+  function f(v){ v = String(v||'').replace(/\s/g,'').replace(',','.'); v = parseFloat(v); return isNaN(v)?0:v; }
+  function fmt(v){ return Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+  function createInvoice(data){
+    var tr = document.createElement('tr');
+    tr.innerHTML = '\n      <td class="left"></td>\n      <td class="left"><input class="left" type="text" value="' + ((data && data.desc) || '') + '" placeholder="описание"></td>\n      <td><input type="number" step="0.01" value="' + ((data && data.amount) || '') + '" /></td>\n      <td><button class="ghost small">—</button></td>\n    ';
+    invoicesBody.appendChild(tr);
+    var inputs = tr.querySelectorAll('input');
+    for(var i=0;i<inputs.length;i++) inputs[i].addEventListener('input', computeAll);
+    tr.querySelector('button').addEventListener('click', function(){ tr.remove(); computeAll(); });
+    computeAll();
+  }
+
+  function createExpense(data){
+    var tr = document.createElement('tr');
+    tr.innerHTML = '\n      <td class="left"></td>\n      <td class="left"><input class="left" type="text" value="' + ((data && data.desc) || '') + '" placeholder="описание"></td>\n      <td><input type="number" step="0.01" value="' + ((data && data.amount) || '') + '"/></td>\n      <td><button class="ghost small">—</button></td>\n    ';
+    expensesBody.appendChild(tr);
+    var inputs = tr.querySelectorAll('input');
+    for(var i=0;i<inputs.length;i++) inputs[i].addEventListener('input', computeAll);
+    tr.querySelector('button').addEventListener('click', function(){ tr.remove(); computeAll(); });
+    computeAll();
+  }
+
+  function updateIndices(){
+    var arr = Array.prototype.slice.call(invoicesBody.children);
+    for(var i=0;i<arr.length;i++){ arr[i].children[0].textContent = String(i+1); }
+    var arr2 = Array.prototype.slice.call(expensesBody.children);
+    for(var j=0;j<arr2.length;j++){ arr2[j].children[0].textContent = String(j+1); }
+  }
+
+  function computeAll(){
+    updateIndices();
+    var invRows = Array.prototype.slice.call(invoicesBody.querySelectorAll('tr'));
+    var expRows = Array.prototype.slice.call(expensesBody.querySelectorAll('tr'));
+
+    var totalReceived = invRows.reduce(function(s,tr){ var v = tr.children[2].querySelector('input').value; return s + f(v); }, 0);
+    var totalExpenses = expRows.reduce(function(s,tr){ var v = tr.children[2].querySelector('input').value; return s + f(v); }, 0);
+    var fixed = f(gestor.value) + f(social.value);
+
+    var taxBase = Math.max(0, totalReceived - totalExpenses - fixed);
+    var taxReserve = taxBase * TAX_RATE;
+    var requiredOnAccount = taxReserve + fixed;
+    var spendable = totalReceived - totalExpenses - requiredOnAccount;
+
+    totalReceivedEl.textContent = fmt(totalReceived);
+    totalExpensesEl.textContent = fmt(totalExpenses);
+    totalFixedEl.textContent = fmt(fixed);
+    taxBaseEl.textContent = fmt(taxBase);
+    taxReserveEl.textContent = fmt(taxReserve);
+    requiredOnAccountEl.textContent = fmt(requiredOnAccount);
+    spendableEl.textContent = fmt(spendable);
+    bankBalDisplay.textContent = fmt(f(bankBalance.value));
+
+    var bal = f(bankBalance.value);
+    if(bal < requiredOnAccount){
+      notice.innerHTML = '<strong class="warn">Внимание:</strong> на счёте недостаточно средств для покрытия резерва на налог и фикс. платежи. Необход. ' + fmt(requiredOnAccount - bal) + ' €';
+    } else {
+      var freely = bal - requiredOnAccount;
+      notice.innerHTML = '<strong class="ok">ОК:</strong> на счёте достаточно. Можно потратить примерно ' + fmt(freely) + ' € (после резерва на налог и фикс.).';
+    }
+  }
+
+  // события
+  addInvoice.addEventListener('click', function(){ createInvoice({}); });
+  addInvoiceSample.addEventListener('click', function(){ invoicesBody.innerHTML=''; createInvoice({desc:'Оплата от клиента (Кипр)', amount:'1200'}); computeAll(); });
+  addExpense.addEventListener('click', function(){ createExpense({}); });
+  addExpenseSample.addEventListener('click', function(){ expensesBody.innerHTML=''; createExpense({desc:'HDD/оборудование', amount:'85'}); computeAll(); });
+
+  var inputsWatch = [gestor, social, bankBalance];
+  for(var k=0;k<inputsWatch.length;k++) inputsWatch[k].addEventListener('input', computeAll);
+
+  editTax.addEventListener('click', function(){ taxEdit.style.display='block'; });
+  cancelTax.addEventListener('click', function(){ taxEdit.style.display='none'; });
+  saveTax.addEventListener('click', function(){ TAX_RATE = f(taxRateInput.value)/100; taxRateLabel.textContent = (TAX_RATE*100).toFixed(2) + '%'; taxRateDisplay.textContent = (TAX_RATE*100).toFixed(2) + '%'; taxEdit.style.display='none'; computeAll(); });
+
+  exportCSVBtn.addEventListener('click', function(){
+    var rows = [];
+    rows.push(['#','Описание','Сумма']);
+    Array.prototype.slice.call(invoicesBody.children).forEach(function(tr,i){ rows.push([i+1, tr.children[1].querySelector('input').value, tr.children[2].querySelector('input').value]); });
+    rows.push([]);
+    rows.push(['Расходы']);
+    rows.push(['#','Описание','Сумма']);
+    Array.prototype.slice.call(expensesBody.children).forEach(function(tr,i){ rows.push([i+1, tr.children[1].querySelector('input').value, tr.children[2].querySelector('input').value]); });
+    rows.push([]);
+    rows.push(['Итоги','', totalReceivedEl.textContent]);
+    rows.push(['Итого расходы','', totalExpensesEl.textContent]);
+    rows.push(['Фикс. расходы','', totalFixedEl.textContent]);
+    rows.push(['Резерв налог','', taxReserveEl.textContent]);
+    rows.push(['Требуется на счёте','', requiredOnAccountEl.textContent]);
+    rows.push(['Доступно к трате','', spendableEl.textContent]);
+
+    var csv = rows.map(function(r){ return r.map(function(c){ return '"' + String(c).replace(/"/g,'""') + '"'; }).join(','); }).join('\n');
+    var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href = url; a.download = 'budget_preview.csv'; a.click(); URL.revokeObjectURL(url);
+  });
+
+  saveLocal.addEventListener('click', function(){
+    var data = {
+      gestor: gestor.value, social: social.value, bankBalance: bankBalance.value, taxRate: TAX_RATE*100,
+      invoices: Array.prototype.slice.call(invoicesBody.children).map(function(tr){ return {desc: tr.children[1].querySelector('input').value, amount: tr.children[2].querySelector('input').value}; }),
+      expenses: Array.prototype.slice.call(expensesBody.children).map(function(tr){ return {desc: tr.children[1].querySelector('input').value, amount: tr.children[2].querySelector('input').value}; })
+    };
+    localStorage.setItem('budget_preview_v1', JSON.stringify(data)); alert('Сохранено в localStorage');
+  });
+
+  loadLocal.addEventListener('click', function(){
+    var raw = localStorage.getItem('budget_preview_v1'); if(!raw){ alert('Нет данных'); return; }
+    var obj = JSON.parse(raw);
+    gestor.value = obj.gestor || '0'; social.value = obj.social || '0'; bankBalance.value = obj.bankBalance || '0';
+    TAX_RATE = (obj.taxRate || 20)/100; taxRateLabel.textContent = ((TAX_RATE*100).toFixed(2)) + '%'; taxRateDisplay.textContent = ((TAX_RATE*100).toFixed(2)) + '%';
+    invoicesBody.innerHTML=''; expensesBody.innerHTML='';
+    (obj.invoices||[]).forEach(function(i){ createInvoice(i); }); (obj.expenses||[]).forEach(function(e){ createExpense(e); });
+    computeAll();
+  });
+
+  clearAll.addEventListener('click', function(){ if(confirm('Очистить всё?')){ invoicesBody.innerHTML=''; expensesBody.innerHTML=''; computeAll(); } });
+
+  createInvoice({desc:'Оплата от клиента (Кипр)', amount:'1200'});
+  createExpense({desc:'HDD', amount:'85'});
+  computeAll();
+
+});
+</script>
+</body>
+</html>
