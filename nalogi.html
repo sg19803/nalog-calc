@@ -75,7 +75,7 @@
         </table>
         <div style="margin-top:8px">
           <button id="addExpense">Добавить расход</button>
-          <button id="addExpenseSample" class="ghost small">+ Пример (102.85€ с IVA)</button>
+          <button id="addExpenseSample" class="ghost small">+ Пример (121.00€ с IVA)</button>
         </div>
       </div>
     </div>
@@ -209,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function(){
     // ФАКТИЧЕСКИЙ CASH FLOW БАЛАНС (используется для расчета доступных средств)
     var cashFlowBalance = initialBalance + totalReceivedGross - totalExpensesGross;
 
-    // ЧИСТЫЙ БАЛАНС (НЕТТО): (только нетто доходы минус нетто расходы) - как просил пользователь
+    // ЧИСТЫЙ БАЛАНС (НЕТТО): То, что пользователь хочет видеть (только нетто доходы минус нетто расходы)
     var netProfitBalance = initialBalance + totalReceivedNet - totalExpensesNet;
 
     // Доступно к трате = Фактический Cash Flow Баланс - Требуемый резерв
@@ -245,7 +245,6 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!invoicesBody) return; 
     var tr = document.createElement('tr');
     
-    // Теперь принимаем только grossReceived
     var grossReceived = f(data && data.grossReceived) || 0;
     
     tr.innerHTML = `
@@ -292,12 +291,11 @@ document.addEventListener('DOMContentLoaded', function(){
   // **НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ**
   
   if (addInvoice) addInvoice.addEventListener('click', function(){ createInvoice({}); });
-  // Пример: 1200 Net + 252 IVA - 180 Retencion = 1272.00 Received
   if (addInvoiceSample) addInvoiceSample.addEventListener('click', function(){ invoicesBody.innerHTML=''; createInvoice({desc:'Оплата от клиента (15% удерж.)', grossReceived: 1272.00}); computeAll(); });
   
   if (addExpense) addExpense.addEventListener('click', function(){ createExpense({}); }); 
-  // Пример расхода: 85 Net + 17.85 IVA = 102.85 GROSS
-  if (addExpenseSample) addExpenseSample.addEventListener('click', function(){ expensesBody.innerHTML=''; createExpense({desc:'Покупка', gross: 102.85}); computeAll(); });
+  // Пример расхода: 100 Net + 21 IVA = 121.00 GROSS. (Чтобы соответствовать запросу 1200-100=1100, Net у расхода должен быть 100)
+  if (addExpenseSample) addExpenseSample.addEventListener('click', function(){ expensesBody.innerHTML=''; createExpense({desc:'Покупка', gross: 121.00}); computeAll(); });
 
   // следим за изменением стартового баланса и фикс. расходов
   var inputsWatch = [gestor, social, bankBalance];
@@ -316,7 +314,6 @@ document.addEventListener('DOMContentLoaded', function(){
   if (exportCSVBtn) exportCSVBtn.addEventListener('click', function(){
     var rows = [];
     rows.push(['Доходы']);
-    // ИЗМЕНЕНЫ ЗАГОЛОВКИ ДЛЯ CSV
     rows.push(['#','Описание','Сумма на счет']); 
     Array.prototype.slice.call(invoicesBody.children).forEach(function(tr,i){ 
         rows.push([
@@ -357,7 +354,6 @@ document.addEventListener('DOMContentLoaded', function(){
   if (saveLocal) saveLocal.addEventListener('click', function(){
     var data = {
       gestor: gestor.value, social: social.value, bankBalance: bankBalance.value, taxRate: IRPF_ADVANCE_RATE*100,
-      // Сохраняем только grossReceived
       invoices: Array.prototype.slice.call(invoicesBody.children).map(function(tr){ 
         return {
             desc: tr.children[1].querySelector('input').value, 
@@ -384,7 +380,7 @@ document.addEventListener('DOMContentLoaded', function(){
     gestor.value = obj.gestor || '0'; social.value = obj.social || '0'; bankBalance.value = obj.bankBalance || '0';
     IRPF_ADVANCE_RATE = (obj.taxRate || 20)/100; if(taxRateLabel) taxRateLabel.textContent = ((IRPF_ADVANCE_RATE*100).toFixed(2)) + '%'; if(taxRateDisplay) taxRateDisplay.textContent = ((IRPF_ADVANCE_RATE*100).toFixed(2)) + '%';
     invoicesBody.innerHTML=''; expensesBody.innerHTML='';
-    (obj.invoices||[]).forEach(function(i){ createInvoice(i.grossReceived ? {desc: i.desc, grossReceived: i.grossReceived} : {desc: i.desc, net: i.net, iva: i.iva, retencion: i.retencion}); }); // Обратная совместимость для старых форматов
+    (obj.invoices||[]).forEach(function(i){ createInvoice(i.grossReceived ? {desc: i.desc, grossReceived: i.grossReceived} : {desc: i.desc, grossReceived: 1.06*f(i.net) - f(i.retencion)}); }); // Обратная совместимость
     (obj.expenses||[]).forEach(function(e){ createExpense(e); });
     computeAll();
   });
@@ -401,8 +397,10 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // СТАРТОВЫЕ ПРИМЕРЫ (запускаются только при пустом калькуляторе)
   if(invoicesBody && expensesBody && invoicesBody.children.length === 0 && expensesBody.children.length === 0) {
+    // 1200 Net, 1272.00 Received
     createInvoice({desc:'Оплата от клиента (15% удерж.)', grossReceived: 1272.00}); 
-    createExpense({desc:'Покупка', gross: 102.85});
+    // 100 Net, 121.00 Gross (для 1200-100=1100 Net баланса)
+    createExpense({desc:'Покупка', gross: 121.00});
     computeAll();
   }
 });
