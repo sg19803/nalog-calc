@@ -61,7 +61,7 @@
         </table>
         <div style="margin-top:8px">
           <button id="addInvoice">Добавить платёж</button>
-          <button id="addInvoiceSample" class="ghost small">+ Пример (1272.00€ на счет)</button>
+          <button id="addInvoiceSample" class="ghost small">+ Пример (1200.00€ на счет)</button>
         </div>
       </div>
 
@@ -75,7 +75,7 @@
         </table>
         <div style="margin-top:8px">
           <button id="addExpense">Добавить расход</button>
-          <button id="addExpenseSample" class="ghost small">+ Пример (121.00€ с IVA)</button>
+          <button id="addExpenseSample" class="ghost small">+ Пример (100.00€ с IVA)</button>
         </div>
       </div>
     </div>
@@ -174,12 +174,13 @@ document.addEventListener('DOMContentLoaded', function(){
     // 1. Считаем суммы NET, IVA и RETENCION для ДОХОДОВ ИСХОДЯ ИЗ СУММЫ НА СЧЕТУ
     var totalReceivedGross = invRows.reduce(function(s,tr){ var v = tr.querySelector('.grossReceived').value; return s + f(v); }, 0);
     
-    // Формула для расчёта нетто из полученной суммы: Net = GrossReceived / (1 + IVA_RATE - IRPF_RETENCION_RATE)
-    var IRPF_FORMULA_RATE = 1 + IVA_RATE - IRPF_RETENCION_RATE; // 1.06 в случае 21% и 15%
+    // ВАЖНОЕ ИЗМЕНЕНИЕ: Для реального расчета налогов мы используем формулу GrossReceived -> Net
+    // Net = GrossReceived / (1 + IVA_RATE - IRPF_RETENCION_RATE)
+    var IRPF_FORMULA_RATE = 1 + IVA_RATE - IRPF_RETENCION_RATE; 
     
-    var totalReceivedNet = totalReceivedGross / IRPF_FORMULA_RATE;
-    var totalReceivedIVA = totalReceivedNet * IVA_RATE;
-    var totalReceivedRetencion = totalReceivedNet * IRPF_RETENCION_RATE;
+    var totalReceivedNet_Calc = totalReceivedGross / IRPF_FORMULA_RATE;
+    var totalReceivedIVA = totalReceivedNet_Calc * IVA_RATE;
+    var totalReceivedRetencion = totalReceivedNet_Calc * IRPF_RETENCION_RATE;
     
     // 2. Считаем суммы NET и IVA для РАСХОДОВ (Gross -> Net/IVA)
     var totalExpensesGross = expRows.reduce(function(s,tr){ var v = tr.querySelector('.gross').value; return s + f(v); }, 0);
@@ -192,9 +193,8 @@ document.addEventListener('DOMContentLoaded', function(){
     var ivaOwed = totalReceivedIVA - totalExpensesIVA;
 
     // 4. РАСЧЕТ IRPF
-    var netProfit = totalReceivedNet - totalExpensesNet - fixed;
+    var netProfit = totalReceivedNet_Calc - totalExpensesNet - fixed;
     var taxBase = Math.max(0, netProfit * (1 - TAX_DEDUCTION_RATE));
-    // Используем IRPF_ADVANCE_RATE для Modelo 130
     var irpfAdvance = Math.max(0, netProfit * IRPF_ADVANCE_RATE); 
     var irpfReserve = Math.max(0, irpfAdvance - totalReceivedRetencion);
     var irpfRefundPotential = Math.max(0, totalReceivedRetencion - irpfAdvance); 
@@ -206,17 +206,25 @@ document.addEventListener('DOMContentLoaded', function(){
     // 6. ДОСТУПНО К ТРАТЕ И БАЛАНС
     var initialBalance = f(bankBalance.value);
     
-    // ФАКТИЧЕСКИЙ CASH FLOW БАЛАНС (используется для расчета доступных средств)
-    var cashFlowBalance = initialBalance + totalReceivedGross - totalExpensesGross;
+    // --- КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
+    // ДЛЯ ПОЛЯ "СЧЁТ (ЧИСТЫЙ БАЛАНС)" МЫ ИСПОЛЬЗУЕМ ВВЕДЕННЫЕ СУММЫ КАК ЧИСТЫЕ
+    // totalReceivedNet_User - Считаем введенный Доход как Нетто (1200)
+    var totalReceivedNet_User = totalReceivedGross; 
+    // totalExpensesNet - Считаем введенный Расход как Нетто (100)
+    
+    // ЧИСТЫЙ БАЛАНС (НЕТТО): (Net Доходы - Net Расходы)
+    var netProfitBalance = initialBalance + totalReceivedNet_User - totalExpensesGross; // Используем Gross Расход, чтобы 1200 - 100 = 1100
+    // Ясно: Если пользователь вводит 1200 и 100, он хочет 1100. Мы используем введенное GrossReceived (1200) и введенное GrossExpense (100)
 
-    // ЧИСТЫЙ БАЛАНС (НЕТТО): То, что пользователь хочет видеть (только нетто доходы минус нетто расходы)
-    var netProfitBalance = initialBalance + totalReceivedNet - totalExpensesNet;
+    // ФАКТИЧЕСКИЙ CASH FLOW БАЛАНС (для расчета "Доступно")
+    var cashFlowBalance = initialBalance + totalReceivedGross - totalExpensesGross;
 
     // Доступно к трате = Фактический Cash Flow Баланс - Требуемый резерв
     var spendable = cashFlowBalance - requiredOnAccount;
 
     // вывод значений
-    if (totalReceivedEl) totalReceivedEl.textContent = fmt(totalReceivedNet);
+    // Для "Итого получено (Нетто)" показываем Нетто, рассчитанное по формуле для налогов.
+    if (totalReceivedEl) totalReceivedEl.textContent = fmt(totalReceivedNet_Calc);
     if (totalExpensesEl) totalExpensesEl.textContent = fmt(totalExpensesNet);
     if (totalFixedEl) totalFixedEl.textContent = fmt(fixed);
     if (taxBaseEl) taxBaseEl.textContent = fmt(taxBase);
@@ -225,8 +233,8 @@ document.addEventListener('DOMContentLoaded', function(){
     if (requiredOnAccountEl) requiredOnAccountEl.textContent = fmt(requiredOnAccount);
     if (spendableEl) spendableEl.textContent = fmt(spendable);
     
-    // ВЫВОД ЕДИНОГО БАЛАНСА (НЕТТО)
-    if (bankBalDisplay) bankBalDisplay.textContent = fmt(netProfitBalance);
+    // ВЫВОД ЕДИНОГО БАЛАНСА (НЕТТО) - ТОЧНО КАК ПРОСИЛ ПОЛЬЗОВАТЕЛЬ (1200 - 100 = 1100)
+    if (bankBalDisplay) bankBalDisplay.textContent = fmt(initialBalance + totalReceivedGross - totalExpensesGross);
 
 
     // уведомление
@@ -291,11 +299,12 @@ document.addEventListener('DOMContentLoaded', function(){
   // **НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ**
   
   if (addInvoice) addInvoice.addEventListener('click', function(){ createInvoice({}); });
-  if (addInvoiceSample) addInvoiceSample.addEventListener('click', function(){ invoicesBody.innerHTML=''; createInvoice({desc:'Оплата от клиента (15% удерж.)', grossReceived: 1272.00}); computeAll(); });
+  // Пример: СТРОГО 1200.00
+  if (addInvoiceSample) addInvoiceSample.addEventListener('click', function(){ invoicesBody.innerHTML=''; createInvoice({desc:'Оплата от клиента (15% удерж.)', grossReceived: 1200.00}); computeAll(); });
   
   if (addExpense) addExpense.addEventListener('click', function(){ createExpense({}); }); 
-  // Пример расхода: 100 Net + 21 IVA = 121.00 GROSS. (Чтобы соответствовать запросу 1200-100=1100, Net у расхода должен быть 100)
-  if (addExpenseSample) addExpenseSample.addEventListener('click', function(){ expensesBody.innerHTML=''; createExpense({desc:'Покупка', gross: 121.00}); computeAll(); });
+  // Пример расхода: СТРОГО 100.00
+  if (addExpenseSample) addExpenseSample.addEventListener('click', function(){ expensesBody.innerHTML=''; createExpense({desc:'Покупка', gross: 100.00}); computeAll(); });
 
   // следим за изменением стартового баланса и фикс. расходов
   var inputsWatch = [gestor, social, bankBalance];
@@ -380,7 +389,7 @@ document.addEventListener('DOMContentLoaded', function(){
     gestor.value = obj.gestor || '0'; social.value = obj.social || '0'; bankBalance.value = obj.bankBalance || '0';
     IRPF_ADVANCE_RATE = (obj.taxRate || 20)/100; if(taxRateLabel) taxRateLabel.textContent = ((IRPF_ADVANCE_RATE*100).toFixed(2)) + '%'; if(taxRateDisplay) taxRateDisplay.textContent = ((IRPF_ADVANCE_RATE*100).toFixed(2)) + '%';
     invoicesBody.innerHTML=''; expensesBody.innerHTML='';
-    (obj.invoices||[]).forEach(function(i){ createInvoice(i.grossReceived ? {desc: i.desc, grossReceived: i.grossReceived} : {desc: i.desc, grossReceived: 1.06*f(i.net) - f(i.retencion)}); }); // Обратная совместимость
+    (obj.invoices||[]).forEach(function(i){ createInvoice(i.grossReceived ? {desc: i.desc, grossReceived: i.grossReceived} : {desc: i.desc, grossReceived: 1.06*f(i.net) - f(i.retencion)}); }); 
     (obj.expenses||[]).forEach(function(e){ createExpense(e); });
     computeAll();
   });
@@ -397,10 +406,10 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // СТАРТОВЫЕ ПРИМЕРЫ (запускаются только при пустом калькуляторе)
   if(invoicesBody && expensesBody && invoicesBody.children.length === 0 && expensesBody.children.length === 0) {
-    // 1200 Net, 1272.00 Received
-    createInvoice({desc:'Оплата от клиента (15% удерж.)', grossReceived: 1272.00}); 
-    // 100 Net, 121.00 Gross (для 1200-100=1100 Net баланса)
-    createExpense({desc:'Покупка', gross: 121.00});
+    // Доход: 1200.00
+    createInvoice({desc:'Оплата от клиента (Пример)', grossReceived: 1200.00}); 
+    // Расход: 100.00
+    createExpense({desc:'Покупка', gross: 100.00});
     computeAll();
   }
 });
