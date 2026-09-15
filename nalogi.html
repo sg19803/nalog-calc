@@ -3,493 +3,313 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Калькулятор доступных средств (Autónomo, Испания)</title>
+  <title>Калькулятор налогов Autónomo (Испания) · v4</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
   <style>
     :root{font-family:Arial,Helvetica,sans-serif;font-size:14px}
     body{margin:18px;background:#f6f7fb;color:#111}
-    .card{background:#fff;padding:14px;border-radius:10px;box-shadow:0 8px 30px rgba(20,30,60,.06);max-width:1100px;margin:auto}
-    h1{font-size:18px;margin:0 0 10px}
+    .card{background:#fff;padding:16px;border-radius:10px;box-shadow:0 8px 30px rgba(20,30,60,.06);max-width:1120px;margin:auto}
+    h1{font-size:19px;margin:0 0 6px}
+    h2{font-size:16px;margin:0 0 10px;color:#0b5fff}
     table{width:100%;border-collapse:collapse;margin-top:8px}
-    th,td{padding:8px;border:1px solid #e6e9f0;text-align:right}
+    th,td{padding:7px;border:1px solid #e6e9f0;text-align:right}
     th{background:#fafbff;font-weight:600}
     th.left,td.left{text-align:left}
-    input[type=text], input[type=number]{width:100%;box-sizing:border-box;padding:6px;border:0;background:transparent;text-align:right}
-    input[type=text].left, input[type=number].left{text-align:left}
-    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    input[type=text], input[type=number]{width:100%;box-sizing:border-box;padding:6px;border:1px solid #e6e9f0;border-radius:5px;background:#fff;text-align:right}
+    select{padding:6px;border:1px solid #e6e9f0;border-radius:5px;background:#fff}
+    input.left{text-align:left}
+    td input{border:0;background:transparent}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px}
+    .controls{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}
     button{background:#0b5fff;color:#fff;border:0;padding:8px 12px;border-radius:6px;cursor:pointer}
     button.ghost{background:transparent;color:#0b5fff;border:1px solid #d6defc}
     .muted{color:#666;font-size:13px}
-    .totals{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-    .tot{background:#f2f7ff;padding:8px 10px;border-radius:8px;min-width:150px}
+    .totals{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .tot{background:#f2f7ff;padding:10px 12px;border-radius:8px;min-width:170px;flex:1 1 190px}
+    .tot b{font-size:16px}
+    .tot.big{background:#eaf3ff;border:1px solid #cfe0ff}
+    .tot.pay{background:#fff2f0;border:1px solid #ffd7cf}
+    .tot.ok{background:#eefaf0;border:1px solid #cdeed5}
     .warn{color:#b33}
-    .ok{color:#0a6f36}
+    .green{color:#0a6f36}
     .small{font-size:13px;padding:6px 10px}
     .right{margin-left:auto}
-    .radio-group{margin-top:8px;display:flex;gap:12px;flex-wrap:wrap}
+    .radio-group{margin-top:8px;display:flex;gap:16px;flex-wrap:wrap}
+    .adv{margin-top:10px;padding:10px;border:1px dashed #cdd6ef;border-radius:8px;background:#fbfcff}
+    .note{font-size:13px;color:#555;line-height:1.5}
+    hr{border:0;border-top:1px solid #eef;margin:14px 0}
   </style>
 </head>
 <body>
-
   <div class="card">
-    <h1>Калькулятор доступных средств (Autónomo, Испания)</h1>
-    <div class="muted">
-      **ВНИМАНИЕ: Для предварительного расчёта, не заменяет консультацию с Gestor'ом!**<br>
-      Включены IVA 21 % и аванс IRPF 20 %. Доход рассчитывается автоматически, предполагая 15 % удержания (для испанских клиентов).<br>
-      Для EU/иностранных клиентов IVA = 0 %, удержание IRPF = 0 %.
+    <h1>Калькулятор налогов · Autónomo (Испания)</h1>
+    <div class="note">
+      ⚠️ <b>Предварительная оценка, не заменяет консультацию с gestor'ом.</b>
+      Ставки на 2025–2026: IVA 21% · retención IRPF 15% (исп. компании) · аванс IRPF 20% (Modelo 130) ·
+      вычет «difícil justificación» 5% с лимитом 2.000 €/год (только estimación directa simplificada).
     </div>
 
-    <!-- ==== НАСТРОЙКИ ==== -->
-    <div style="display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap">
-      <label>Оплата хестора (месяц) €: <input id="gestor" type="number" step="0.01" value="50" /></label>
-      <label>Seguridad Social (месяц) €: <input id="social" type="number" step="0.01" value="87.61" /></label>
-      <label>Текущий баланс на счёте €: <input id="bankBalance" type="number" step="0.01" value="0" /></label>
-      <div class="right muted">
-        Ставка аванса IRPF (резерв): <strong id="taxRateLabel">20.00%</strong>
-        <button id="editTax" class="ghost small">Изменить</button>
-      </div>
-    </div>
-
-    <!-- Тип клиента -->
+    <!-- ===== ТИП КЛИЕНТА / РЕЖИМ ===== -->
     <div class="radio-group">
-      <label><input type="radio" name="clientType" value="es" id="esClient"> Испанский клиент (IVA 21 % + IRPF 15 %)</label>
-      <label><input type="radio" name="clientType" value="eu" id="euClient" checked> EU / иностранный клиент (IVA 0 %, IRPF 0 %)</label>
+      <label><input type="radio" name="clientType" value="es" id="esClient"> Испанский клиент (IVA 21% + retención IRPF 15%)</label>
+      <label><input type="radio" name="clientType" value="eu" id="euClient" checked> EU / иностранный (IVA 0%, retención 0%)</label>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="simplificada" checked> Estimación directa simplificada (даёт вычет 5%)</label>
+      <label class="right">Месяцев SS в квартале: <input id="ssMonths" type="number" step="1" value="3" style="width:60px"></label>
     </div>
 
-    <!-- Редактирование ставки IRPF -->
-    <div id="taxEdit" style="display:none;margin-top:8px">
-      <label>Ставка аванса IRPF (%): <input id="taxRateInput" type="number" step="0.01" value="20" /></label>
-      <button id="saveTax" class="ghost small">Сохранить</button>
-      <button id="cancelTax" class="ghost small">Отмена</button>
+    <!-- ===== ФИКС. РАСХОДЫ ===== -->
+    <div class="row">
+      <label>Gestor / мес (с IVA) €: <input id="gestor" type="number" step="0.01" value="60.50" style="width:110px"></label>
+      <label>Cuota autónomos / мес €: <input id="social" type="number" step="0.01" value="205.23" style="width:110px"></label>
+      <label>Баланс на счёте €: <input id="bankBalance" type="number" step="0.01" value="0" style="width:110px"></label>
     </div>
 
-    <!-- ==== ТАБЛИЦЫ ==== -->
+    <!-- ===== ТАБЛИЦЫ ===== -->
     <div class="controls">
-      <div style="flex:1 1 600px">
-        <strong>Счета / доходы (сумма, поступившая на счет)</strong>
-        <table id="invoicesTable" style="margin-top:8px">
-          <thead>
-            <tr><th class="left">#</th><th class="left" style="width:70%">Описание</th><th>Сумма на счет (€)</th><th>X</th></tr>
-          </thead>
+      <div style="flex:1 1 480px">
+        <strong>Доходы — база фактуры (без IVA)</strong>
+        <table id="invoicesTable">
+          <thead><tr><th class="left">#</th><th class="left" style="width:65%">Описание</th><th>База € (sin IVA)</th><th>X</th></tr></thead>
           <tbody id="invoicesBody"></tbody>
         </table>
         <div style="margin-top:8px">
-          <button id="addInvoice">Добавить платёж</button>
-          <button id="addInvoiceSample" class="ghost small">+ Пример (1200.00 € на счет)</button>
+          <button id="addInvoice">+ Доход</button>
+          <button id="addInvoiceSample" class="ghost small">Пример 1000 €</button>
         </div>
       </div>
 
-      <div style="flex:1 1 420px">
-        <strong>Расходы (покупки)</strong>
-        <table id="expensesTable" style="margin-top:8px">
-          <thead>
-            <tr><th class="left">#</th><th class="left" style="width:50%">Описание</th><th>Сумма с IVA (€)</th><th>X</th></tr>
-          </thead>
+      <div style="flex:1 1 480px">
+        <strong>Расходы (покупки для деятельности)</strong>
+        <table id="expensesTable">
+          <thead><tr><th class="left">#</th><th class="left" style="width:38%">Описание</th><th>Сумма € (с IVA)</th><th>IVA</th><th>% выч.</th><th>X</th></tr></thead>
           <tbody id="expensesBody"></tbody>
         </table>
         <div style="margin-top:8px">
-          <button id="addExpense">Добавить расход</button>
-          <button id="addExpenseSample" class="ghost small">+ Пример (100.00 € с IVA)</button>
+          <button id="addExpense">+ Расход</button>
+          <button id="addExpenseSample" class="ghost small">Пример 121 €</button>
         </div>
       </div>
     </div>
 
-    <!-- ==== ИТОГИ ==== -->
-    <div class="totals">
-      <div class="tot">Итого получено (Нетто): <strong id="totalReceived">0.00</strong> €</div>
-      <div class="tot">Итого расходы (Нетто): <strong id="totalExpenses">0.00</strong> €</div>
-      <div class="tot">Фикс. расходы: <strong id="totalFixed">0.00</strong> €</div>
-      <div class="tot">Налогооблаг. база (с 7 % вычетом): <strong id="taxBase">0.00</strong> €</div>
-      <div class="tot">
-        **КВАРТАЛЬНЫЙ РЕЗЕРВ (МОДЕЛО 303):**<br>
-        IVA к уплате: <strong id="ivaOwed">0.00</strong> €
-      </div>
-      <div class="tot">
-        **КВАРТАЛЬНЫЙ РЕЗЕРВ (МОДЕЛО 130):**<br>
-        IRPF Аванс/Удерж. (<span id="taxRateDisplay">20.00%</span>): <strong id="irpfReserve">0.00</strong> €
-      </div>
-      <div class="tot">
-        **ОБЩИЙ РЕЗЕРВ (НАЛОГИ + ФИКС.):**<br>
-        Требуется на счёте: <strong id="requiredOnAccount">0.00</strong> €
-      </div>
-      <div class="tot">
-        **ДОСТУПНО:**<br>
-        Доступно для траты: <strong id="spendable">0.00</strong> €
-      </div>
-      <div class="tot">
-        **СЧЁТ (ЧИСТЫЙ БАЛАНС):**<br>
-        Всего денег на счету (Нетто): <strong id="bankBalDisplay">0.00</strong> €
+    <!-- ===== РАСШИРЕННОЕ (для точного Modelo 130) ===== -->
+    <div class="adv">
+      <strong>Точный Modelo 130 (накопительный расчёт)</strong>
+      <div class="note">Modelo 130 считается с 1 января нарастающим итогом. Чтобы получить точную сумму <em>к доплате именно за этот квартал</em>, укажи, что уже уплачено в предыдущих 130 и какие удержания были раньше. Если оставить 0 — расчёт как за первый квартал / изолированную оценку.</div>
+      <div class="row">
+        <label>Пагос Modelo 130 за пред. кварталы €: <input id="prevPayments" type="number" step="0.01" value="0" style="width:110px"></label>
+        <label>Retención за пред. кварталы €: <input id="prevRetencion" type="number" step="0.01" value="0" style="width:110px"></label>
+        <label>Minoración art.110.3c (0–100) €: <input id="minoracion" type="number" step="0.01" value="0" style="width:90px"></label>
       </div>
     </div>
 
-    <!-- ==== КНОПКИ ==== -->
-    <div style="margin-top:12px">
-      <button id="exportCSV" class="ghost small">Экспорт CSV</button>
+    <!-- ===== ИТОГИ ===== -->
+    <hr>
+    <div class="totals">
+      <div class="tot">Доходы (база): <b id="tIngresos">0.00</b> €</div>
+      <div class="tot">Расходы к списанию (база IRPF): <b id="tGastos">0.00</b> €<div class="note">включая gestor + cuota + покупки</div></div>
+      <div class="tot">Рендименто нето: <b id="tRend">0.00</b> €</div>
+      <div class="tot">Вычет 5% (difícil just.): <b id="tDificil">0.00</b> €</div>
+      <div class="tot">База IRPF: <b id="tBaseIRPF">0.00</b> €</div>
+    </div>
+
+    <div class="totals">
+      <div class="tot pay"><b>Modelo 303 (IVA)</b><br>К уплате: <b id="tIva">0.00</b> €<div class="note" id="ivaNote"></div></div>
+      <div class="tot pay"><b>Modelo 130 (IRPF)</b><br>К уплате: <b id="tIrpf">0.00</b> €<div class="note" id="irpfNote"></div></div>
+      <div class="tot big"><b>Налоги за квартал</b><br>303 + 130: <b id="tTaxTotal">0.00</b> €</div>
+      <div class="tot"><b>Cuota SS за квартал</b><br>Отдельно (по месяцам): <b id="tSS">0.00</b> €</div>
+    </div>
+
+    <div class="totals">
+      <div class="tot big"><b>Отложить (резерв)</b><br>Налоги + не потраченная SS: <b id="tReserve">0.00</b> €</div>
+      <div class="tot ok"><b>Доступно потратить</b><br><b id="tSpendable">0.00</b> €</div>
+      <div class="tot"><b>Баланс счёта (cash)</b><br><b id="tBank">0.00</b> €</div>
+    </div>
+    <div id="notice" style="margin-top:10px" class="note"></div>
+
+    <div style="margin-top:14px">
       <button id="saveLocal" class="ghost small">Сохранить</button>
       <button id="loadLocal" class="ghost small">Загрузить</button>
-      <button id="clearAll" class="ghost small">Очистить всё</button>
-      <div id="notice" style="margin-top:8px" class="muted"></div>
+      <button id="clearAll" class="ghost small">Очистить</button>
+      <button onclick="window.print()" class="ghost small">Печать</button>
+    </div>
+  </div>
+
+  <!-- ===== ПОЯСНЕНИЯ ===== -->
+  <div class="card" style="margin-top:24px;background:#f9f9fb;border:1px solid #e0e0e0">
+    <h2>Как это считается (коротко)</h2>
+    <div class="note">
+      <p><b>IVA (Modelo 303, поквартально):</b> IVA собранный с доходов − IVA уплаченный в расходах (× % вычета) − IVA услуг gestor'а. Для EU-клиента собранный IVA = 0, поэтому обычно выходит «a compensar / devolver» (к возврату), платить нечего. Не забудь <b>Modelo 349</b> по операциям с EU.</p>
+      <p><b>IRPF (Modelo 130, накопительно с 1 января):</b> (Доходы − Расходы − gestor − cuota) = рендименто нето. Минус 5% difícil justificación (только simplificada, максимум 2.000 €/год). × 20% = аванс. Минус retención, минус уже уплаченные 130, минус minoración. Если результат отрицательный — квартал «negativo», платить 0.</p>
+      <p><b>Важно:</b> если &gt;70% дохода идёт с retención (испанские компании) — Modelo 130 вообще <b>не подаётся</b>. И 20% — это <b>аванс</b>, а не финальный налог: итог считается прогрессивно (19–47%) в годовой Renta, разницу доплатишь или вернут.</p>
+      <p><b>Cuota SS</b> платится <b>ежемесячно</b>, не в квартал. В блоке показана справочно за N месяцев. Она полностью списывается как расход IRPF. Дефолт 205,23 € — минимум 2025; если у тебя tarifa plana — поставь 80 €, если свой транш — свою цифру.</p>
+      <p style="color:#b33"><b>Всегда сверяй с gestor'ом перед подачей деклараций.</b></p>
     </div>
   </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var invoicesBody=$('invoicesBody'), expensesBody=$('expensesBody');
 
-  /* ====================== ПЕРЕМЕННЫЕ ====================== */
-  var invoicesBody = document.getElementById('invoicesBody');
-  var expensesBody = document.getElementById('expensesBody');
-  var addInvoice = document.getElementById('addInvoice');
-  var addInvoiceSample = document.getElementById('addInvoiceSample');
-  var addExpense = document.getElementById('addExpense');
-  var addExpenseSample = document.getElementById('addExpenseSample');
-  var gestor = document.getElementById('gestor');
-  var social = document.getElementById('social');
-  var bankBalance = document.getElementById('bankBalance');
-  var totalReceivedEl = document.getElementById('totalReceived');
-  var totalExpensesEl = document.getElementById('totalExpenses');
-  var totalFixedEl = document.getElementById('totalFixed');
-  var taxBaseEl = document.getElementById('taxBase');
-  var ivaOwedEl = document.getElementById('ivaOwed');
-  var irpfReserveEl = document.getElementById('irpfReserve');
-  var requiredOnAccountEl = document.getElementById('requiredOnAccount');
-  var spendableEl = document.getElementById('spendable');
-  var bankBalDisplay = document.getElementById('bankBalDisplay');
-  var notice = document.getElementById('notice');
-  var taxRateInput = document.getElementById('taxRateInput');
-  var taxRateLabel = document.getElementById('taxRateLabel');
-  var taxRateDisplay = document.getElementById('taxRateDisplay');
-  var editTax = document.getElementById('editTax');
-  var taxEdit = document.getElementById('taxEdit');
-  var saveTax = document.getElementById('saveTax');
-  var cancelTax = document.getElementById('cancelTax');
-  var exportCSVBtn = document.getElementById('exportCSV');
-  var saveLocal = document.getElementById('saveLocal');
-  var loadLocal = document.getElementById('loadLocal');
-  var clearAll = document.getElementById('clearAll');
+  // ---- КОНСТАНТЫ (2025–2026) ----
+  var IVA_MAIN=0.21, RETENCION=0.15, IRPF_ADVANCE=0.20, DIFICIL_RATE=0.05, DIFICIL_CAP=2000;
+  var clientType='eu';
 
-  // ---- НАЛОГОВЫЕ КОНСТАНТЫ ----
-  var IVA_RATE = 0.21;                // 21 %
-  var IRPF_RETENCION_RATE = 0.15;     // 15 % (для испанских клиентов)
-  var IRPF_ADVANCE_RATE = 0.20;       // 20 % аванс IRPF (Modelo 130)
-  var TAX_DEDUCTION_RATE = 0.07;      // 7 % общий вычет
-
-  // ---- ТИП КЛИЕНТА ----
-  var clientType = 'eu'; // 'es' = испанский, 'eu' = EU/иностранный
-
-  /* ====================== УТИЛИТЫ ====================== */
-  function f(v){ v = String(v||'').replace(/\s/g,'').replace(',','.'); v = parseFloat(v); return isNaN(v)?0:v; }
+  function f(v){ v=String(v||'').replace(/\s/g,'').replace(',','.'); v=parseFloat(v); return isNaN(v)?0:v; }
   function fmt(v){ return Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
-  function updateIndices(){
-    var arr = Array.prototype.slice.call(invoicesBody.children);
-    for(var i=0;i<arr.length;i++){ arr[i].children[0].textContent = String(i+1); }
-    var arr2 = Array.prototype.slice.call(expensesBody.children);
-    for(var j=0;j<arr2.length;j++){ arr2[j].children[0].textContent = String(j+1); }
+  function reindex(){
+    [].slice.call(invoicesBody.children).forEach(function(tr,i){ tr.children[0].textContent=i+1; });
+    [].slice.call(expensesBody.children).forEach(function(tr,i){ tr.children[0].textContent=i+1; });
   }
 
-  /* ====================== ОСНОВНОЙ РАСЧЁТ ====================== */
-  function computeAll(){
-    updateIndices();
+  function compute(){
+    reindex();
+    var months = f($('ssMonths').value);
+    // ---- Доходы (база sin IVA) ----
+    var ingresosBase=0;
+    [].slice.call(invoicesBody.querySelectorAll('tr')).forEach(function(tr){ ingresosBase += f(tr.querySelector('.base').value); });
+    var ivaRepercutido = (clientType==='es') ? ingresosBase*IVA_MAIN : 0;
+    var retencion      = (clientType==='es') ? ingresosBase*RETENCION : 0;
+    var recibido       = ingresosBase + ivaRepercutido - retencion; // что придёт на счёт
 
-    // ----- Данные из таблиц -----
-    var invRows = Array.prototype.slice.call(invoicesBody.querySelectorAll('tr'));
-    var expRows = Array.prototype.slice.call(expensesBody.querySelectorAll('tr'));
+    // ---- Расходы ----
+    var gastosNet=0, ivaSoportado=0, gastosGrossCash=0;
+    [].slice.call(expensesBody.querySelectorAll('tr')).forEach(function(tr){
+      var total=f(tr.querySelector('.gross').value);
+      var rate=f(tr.querySelector('.iva').value)/100;
+      var ded =f(tr.querySelector('.ded').value)/100;
+      var net = rate>0 ? total/(1+rate) : total;
+      var iva = total-net;
+      gastosNet += net;
+      ivaSoportado += iva*ded;
+      gastosGrossCash += total;
+    });
 
-    var totalReceivedGross = invRows.reduce(function(s,tr){ return s + f(tr.querySelector('.grossReceived').value); }, 0);
-    var totalExpensesGross = expRows.reduce(function(s,tr){ return s + f(tr.querySelector('.gross').value); }, 0);
+    // ---- Фикс. расходы ----
+    var gestorTotal=f($('gestor').value)*months;
+    var gestorNet=gestorTotal/(1+IVA_MAIN), gestorIva=gestorTotal-gestorNet;
+    var ss=f($('social').value)*months; // без IVA, вычитается из IRPF
+    var fixedCash=gestorTotal+ss;
 
-    // ----- Эффективные ставки в зависимости от типа клиента -----
-    var effectiveIVA = (clientType === 'es') ? IVA_RATE : 0;
-    var effectiveRetencion = (clientType === 'es') ? IRPF_RETENCION_RATE : 0;
-    var IRPF_FORMULA_RATE = 1 + effectiveIVA - effectiveRetencion;   // 1.06 для ES, 1.0 для EU
+    // ---- IVA (Modelo 303) ----
+    var iva303 = ivaRepercutido - (ivaSoportado + gestorIva);
 
-    // ----- Доход -----
-    var totalReceivedNet_Calc = totalReceivedGross / IRPF_FORMULA_RATE;   // налоговая база
-    var totalReceivedIVA = totalReceivedNet_Calc * effectiveIVA;
-    var totalReceivedRetencion = totalReceivedNet_Calc * effectiveRetencion;
+    // ---- IRPF (Modelo 130) ----
+    var gastosDeducibles = gastosNet + gestorNet + ss;
+    var rendNeto = ingresosBase - gastosDeducibles;
+    var dificil = ($('simplificada').checked && rendNeto>0) ? Math.min(DIFICIL_CAP, rendNeto*DIFICIL_RATE) : 0;
+    var baseIRPF = Math.max(0, rendNeto - dificil);
+    var irpfBruto = baseIRPF*IRPF_ADVANCE;
+    var retencionTotal = retencion + f($('prevRetencion').value);
+    var minor = Math.min(100, Math.max(0, f($('minoracion').value)));
+    var irpf130 = Math.max(0, irpfBruto - retencionTotal - minor - f($('prevPayments').value));
 
-    // ----- Расходы -----
-    var totalExpensesNet = totalExpensesGross / (1 + IVA_RATE);   // всегда IVA 21 % в расходах
-    var totalExpensesIVA = totalExpensesGross - totalExpensesNet;
+    // ---- Итоги ----
+    var ivaToPay = Math.max(0, iva303);
+    var taxTotal = ivaToPay + irpf130;
+    var reserve = taxTotal; // SS/gestor уже потрачены как cash, не резервируем повторно
+    var cashFlow = f($('bankBalance').value) + recibido - gastosGrossCash - fixedCash;
+    var spendable = cashFlow - reserve;
 
-    var fixed = f(gestor.value) + f(social.value);
+    // ---- Вывод ----
+    $('tIngresos').textContent=fmt(ingresosBase);
+    $('tGastos').textContent=fmt(gastosDeducibles);
+    $('tRend').textContent=fmt(rendNeto);
+    $('tDificil').textContent=fmt(dificil);
+    $('tBaseIRPF').textContent=fmt(baseIRPF);
+    $('tIva').textContent=fmt(iva303);
+    $('ivaNote').textContent = iva303<0 ? 'a compensar/devolver '+fmt(-iva303)+' € (платить 0)' : (clientType==='eu'?'reverse charge':'');
+    $('tIrpf').textContent=fmt(irpf130);
+    $('irpfNote').textContent = irpfBruto>0 && (retencionTotal+minor+f($('prevPayments').value))>=irpfBruto ? 'квартал negativo (0)' : ('20% от базы = '+fmt(irpfBruto)+' €');
+    $('tTaxTotal').textContent=fmt(taxTotal);
+    $('tSS').textContent=fmt(ss);
+    $('tReserve').textContent=fmt(reserve);
+    $('tSpendable').textContent=fmt(spendable);
+    $('tBank').textContent=fmt(cashFlow);
 
-    // ----- IVA (Modelo 303) -----
-    var ivaOwed = totalReceivedIVA - totalExpensesIVA;
-
-    // ----- IRPF (Modelo 130) -----
-    var netProfit = totalReceivedNet_Calc - totalExpensesNet - fixed;
-    var taxBase = Math.max(0, netProfit * (1 - TAX_DEDUCTION_RATE));
-    var irpfAdvance = Math.max(0, netProfit * IRPF_ADVANCE_RATE);
-    var irpfReserve = Math.max(0, irpfAdvance - totalReceivedRetencion);
-    var irpfRefundPotential = Math.max(0, totalReceivedRetencion - irpfAdvance);
-
-    // ----- Финальные резервы -----
-    var totalTaxReserve = Math.max(0, ivaOwed) + irpfReserve;
-    var requiredOnAccount = totalTaxReserve + fixed;
-
-    // ----- Cash-flow -----
-    var initialBalance = f(bankBalance.value);
-    var cashFlowBalance = initialBalance + totalReceivedGross - totalExpensesGross;
-    var spendable = cashFlowBalance - requiredOnAccount;
-
-    // ----- Чистый баланс (gross, как у пользователя) -----
-    var netProfitBalance = initialBalance + totalReceivedGross - totalExpensesGross;
-
-    // ----- Вывод -----
-    totalReceivedEl.innerHTML = fmt(totalReceivedNet_Calc) + '<br><small>(gross: ' + fmt(totalReceivedGross) + '; IVA: ' + (effectiveIVA*100).toFixed(0) + '%)</small>';
-    totalExpensesEl.textContent = fmt(totalExpensesNet);
-    totalFixedEl.textContent = fmt(fixed);
-    taxBaseEl.textContent = fmt(taxBase);
-    ivaOwedEl.textContent = fmt(ivaOwed);
-    irpfReserveEl.textContent = fmt(irpfReserve);
-    requiredOnAccountEl.textContent = fmt(requiredOnAccount);
-    spendableEl.textContent = fmt(spendable);
-    bankBalDisplay.textContent = fmt(netProfitBalance);
-
-    // ----- Уведомление -----
-    if (cashFlowBalance < requiredOnAccount){
-      notice.innerHTML = '<strong class="warn">Внимание:</strong> недостаточно средств. Нужно отложить ' + fmt(requiredOnAccount) + ' € (на счету: ' + fmt(cashFlowBalance) + ' €).';
+    if(spendable<0){
+      $('notice').innerHTML='<span class="warn"><b>Внимание:</b> на счёте не хватает '+fmt(-spendable)+' € для покрытия налогов.</span>';
     } else {
-      var freely = cashFlowBalance - requiredOnAccount;
-      var refundNote = irpfRefundPotential > 0 ? '. Возможен возврат IRPF: ' + fmt(irpfRefundPotential) + ' €.' : '';
-      notice.innerHTML = '<strong class="ok">ОК:</strong> можно потратить ≈ ' + fmt(freely) + ' €' + refundNote;
+      $('notice').innerHTML='<span class="green"><b>ОК:</b> можно свободно потратить ≈ '+fmt(spendable)+' €. Отложи на налоги '+fmt(reserve)+' €.</span>';
     }
   }
 
-  /* ====================== СОЗДАНИЕ СТРОК ====================== */
-  function createInvoice(data){
-    var tr = document.createElement('tr');
-    var grossReceived = f(data && data.grossReceived) || 0;
-    tr.innerHTML = `
-      <td class="left"></td>
-      <td class="left"><input class="left" type="text" value="${(data && data.desc) || ''}" placeholder="описание"></td>
-      <td><input type="number" step="0.01" value="${grossReceived.toFixed(2)}" class="grossReceived" placeholder="Сумма на счет" /></td>
-      <td><button class="ghost small">—</button></td>
-    `;
+  // ---- строки ----
+  function addInvoice(d){
+    d=d||{};
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td class="left"></td>'+
+      '<td class="left"><input class="left" type="text" placeholder="описание" value="'+(d.desc||'')+'"></td>'+
+      '<td><input class="base" type="number" step="0.01" value="'+(d.base!=null?d.base:'')+'" placeholder="0.00"></td>'+
+      '<td><button class="ghost small">—</button></td>';
     invoicesBody.appendChild(tr);
-    var inputs = tr.querySelectorAll('input');
-    for(var i=0;i<inputs.length;i++){
-      inputs[i].addEventListener('input', computeAll);
-      inputs[i].addEventListener('change', computeAll);
-    }
-    tr.querySelector('button').addEventListener('click', function(){ tr.remove(); computeAll(); });
-    computeAll();
+    tr.querySelectorAll('input').forEach(function(i){ i.addEventListener('input',compute); });
+    tr.querySelector('button').addEventListener('click',function(){ tr.remove(); compute(); });
+    compute();
   }
-
-  function createExpense(data){
-    var tr = document.createElement('tr');
-    var gross = f(data && data.gross) || 0;
-    tr.innerHTML = `
-      <td class="left"></td>
-      <td class="left"><input class="left" type="text" value="${(data && data.desc) || ''}" placeholder="описание"></td>
-      <td><input type="number" step="0.01" value="${gross.toFixed(2)}" class="gross" placeholder="Сумма с IVA" /></td>
-      <td><button class="ghost small">—</button></td>
-    `;
+  function addExpense(d){
+    d=d||{};
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td class="left"></td>'+
+      '<td class="left"><input class="left" type="text" placeholder="описание" value="'+(d.desc||'')+'"></td>'+
+      '<td><input class="gross" type="number" step="0.01" value="'+(d.gross!=null?d.gross:'')+'" placeholder="0.00"></td>'+
+      '<td><select class="iva">'+
+        ['21','10','4','0'].map(function(r){ return '<option value="'+r+'"'+(String(d.iva||'21')===r?' selected':'')+'>'+r+'%</option>'; }).join('')+
+      '</select></td>'+
+      '<td><input class="ded" type="number" step="1" value="'+(d.ded!=null?d.ded:100)+'" style="width:56px"></td>'+
+      '<td><button class="ghost small">—</button></td>';
     expensesBody.appendChild(tr);
-    var inputs = tr.querySelectorAll('input');
-    for(var i=0;i<inputs.length;i++){
-      inputs[i].addEventListener('input', computeAll);
-      inputs[i].addEventListener('change', computeAll);
-    }
-    tr.querySelector('button').addEventListener('click', function(){ tr.remove(); computeAll(); });
-    computeAll();
+    tr.querySelectorAll('input,select').forEach(function(i){ i.addEventListener('input',compute); i.addEventListener('change',compute); });
+    tr.querySelector('button').addEventListener('click',function(){ tr.remove(); compute(); });
+    compute();
   }
 
-  /* ====================== ОБРАБОТЧИКИ ====================== */
-  addInvoice.addEventListener('click', function(){ createInvoice({}); });
-  addInvoiceSample.addEventListener('click', function(){
-    invoicesBody.innerHTML=''; createInvoice({desc:'Оплата от клиента (Пример)', grossReceived:1200.00}); computeAll();
-  });
-  addExpense.addEventListener('click', function(){ createExpense({}); });
-  addExpenseSample.addEventListener('click', function(){
-    expensesBody.innerHTML=''; createExpense({desc:'Покупка (Пример)', gross:100.00}); computeAll();
-  });
+  // ---- обработчики ----
+  $('addInvoice').addEventListener('click',function(){ addInvoice({}); });
+  $('addInvoiceSample').addEventListener('click',function(){ addInvoice({desc:'Оплата от клиента',base:1000}); });
+  $('addExpense').addEventListener('click',function(){ addExpense({}); });
+  $('addExpenseSample').addEventListener('click',function(){ addExpense({desc:'Софт/подписка',gross:121,iva:'21',ded:100}); });
 
-  // Фикс. расходы и баланс
-  [gestor, social, bankBalance].forEach(function(el){
-    el.addEventListener('input', computeAll);
-    el.addEventListener('change', computeAll);
+  ['gestor','social','bankBalance','ssMonths','simplificada','prevPayments','prevRetencion','minoracion'].forEach(function(id){
+    $(id).addEventListener('input',compute); $(id).addEventListener('change',compute);
+  });
+  document.querySelectorAll('input[name=clientType]').forEach(function(r){
+    r.addEventListener('change',function(){ clientType=this.value; compute(); });
   });
 
-  // Тип клиента
-  document.querySelectorAll('input[name="clientType"]').forEach(function(radio){
-    radio.addEventListener('change', function(){
-      clientType = this.value;
-      computeAll();
-    });
-  });
-
-  // Редактирование ставки IRPF
-  editTax.addEventListener('click', function(){ taxEdit.style.display='block'; });
-  cancelTax.addEventListener('click', function(){ taxEdit.style.display='none'; });
-  saveTax.addEventListener('click', function(){
-    IRPF_ADVANCE_RATE = f(taxRateInput.value)/100;
-    taxRateLabel.textContent = (IRPF_ADVANCE_RATE*100).toFixed(2) + '%';
-    taxRateDisplay.textContent = (IRPF_ADVANCE_RATE*100).toFixed(2) + '%';
-    taxEdit.style.display='none';
-    computeAll();
-  });
-
-  /* ====================== CSV / LOCALSTORAGE ====================== */
-  exportCSVBtn.addEventListener('click', function(){
-    var rows = [];
-    rows.push(['Доходы']);
-    rows.push(['#','Описание','Сумма на счет']);
-    Array.prototype.slice.call(invoicesBody.children).forEach(function(tr,i){
-      rows.push([i+1, tr.children[1].querySelector('input').value, tr.children[2].querySelector('.grossReceived').value]);
-    });
-    rows.push([]); rows.push(['Расходы']);
-    rows.push(['#','Описание','Сумма с IVA']);
-    Array.prototype.slice.call(expensesBody.children).forEach(function(tr,i){
-      rows.push([i+1, tr.children[1].querySelector('input').value, tr.children[2].querySelector('.gross').value]);
-    });
-    rows.push([]); rows.push(['Итоги']);
-    rows.push(['Итого получено (Нетто)','', totalReceivedEl.textContent.replace(/<br>.*/,'')]);
-    rows.push(['Итого расходы (Нетто)','', totalExpensesEl.textContent]);
-    rows.push(['Фикс. расходы','', totalFixedEl.textContent]);
-    rows.push(['Налогооблаг. база','', taxBaseEl.textContent]);
-    rows.push(['IVA к уплате','', ivaOwedEl.textContent]);
-    rows.push(['IRPF резерв','', irpfReserveEl.textContent]);
-    rows.push(['Требуется на счёте','', requiredOnAccountEl.textContent]);
-    rows.push(['Доступно к трате','', spendableEl.textContent]);
-    rows.push(['Чистый баланс','', bankBalDisplay.textContent]);
-
-    var csv = rows.map(function(r){ return r.map(function(c){ return '"' + String(c).replace(/"/g,'""') + '"'; }).join(','); }).join('\n');
-    var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = 'budget_preview.csv'; a.click(); URL.revokeObjectURL(url);
-  });
-
-  saveLocal.addEventListener('click', function(){
-    var data = {
-      gestor: gestor.value, social: social.value, bankBalance: bankBalance.value,
-      taxRate: IRPF_ADVANCE_RATE*100, clientType: clientType,
-      invoices: Array.prototype.slice.call(invoicesBody.children).map(function(tr){
-        return {desc: tr.children[1].querySelector('input').value, grossReceived: tr.children[2].querySelector('.grossReceived').value};
-      }),
-      expenses: Array.prototype.slice.call(expensesBody.children).map(function(tr){
-        return {desc: tr.children[1].querySelector('input').value, gross: tr.children[2].querySelector('.gross').value};
-      })
+  // ---- localStorage ----
+  $('saveLocal').addEventListener('click',function(){
+    var data={
+      clientType:clientType, simplificada:$('simplificada').checked, ssMonths:$('ssMonths').value,
+      gestor:$('gestor').value, social:$('social').value, bankBalance:$('bankBalance').value,
+      prevPayments:$('prevPayments').value, prevRetencion:$('prevRetencion').value, minoracion:$('minoracion').value,
+      invoices:[].slice.call(invoicesBody.children).map(function(tr){ return {desc:tr.children[1].querySelector('input').value, base:tr.querySelector('.base').value}; }),
+      expenses:[].slice.call(expensesBody.children).map(function(tr){ return {desc:tr.children[1].querySelector('input').value, gross:tr.querySelector('.gross').value, iva:tr.querySelector('.iva').value, ded:tr.querySelector('.ded').value}; })
     };
-    localStorage.setItem('budget_preview_v3', JSON.stringify(data));
-    alert('Сохранено в localStorage (v3)');
+    localStorage.setItem('nalog_v4',JSON.stringify(data)); alert('Сохранено');
   });
-
-  loadLocal.addEventListener('click', function(){
-    var raw = localStorage.getItem('budget_preview_v3');
-    if(!raw){ alert('Нет сохранённых данных (v3)'); return; }
-    var obj = JSON.parse(raw);
-    gestor.value = obj.gestor || '0'; social.value = obj.social || '0'; bankBalance.value = obj.bankBalance || '0';
-    IRPF_ADVANCE_RATE = (obj.taxRate || 20)/100;
-    clientType = obj.clientType || 'eu';
-    document.querySelector('#'+clientType+'Client').checked = true;
-    taxRateLabel.textContent = (IRPF_ADVANCE_RATE*100).toFixed(2)+'%';
-    taxRateDisplay.textContent = (IRPF_ADVANCE_RATE*100).toFixed(2)+'%';
+  $('loadLocal').addEventListener('click',function(){
+    var raw=localStorage.getItem('nalog_v4'); if(!raw){ alert('Нет сохранённых данных'); return; }
+    var o=JSON.parse(raw);
+    clientType=o.clientType||'eu'; document.querySelector('#'+clientType+'Client').checked=true;
+    $('simplificada').checked=o.simplificada!==false; $('ssMonths').value=o.ssMonths||'3';
+    $('gestor').value=o.gestor||'0'; $('social').value=o.social||'0'; $('bankBalance').value=o.bankBalance||'0';
+    $('prevPayments').value=o.prevPayments||'0'; $('prevRetencion').value=o.prevRetencion||'0'; $('minoracion').value=o.minoracion||'0';
     invoicesBody.innerHTML=''; expensesBody.innerHTML='';
-    (obj.invoices||[]).forEach(function(i){ createInvoice(i); });
-    (obj.expenses||[]).forEach(function(e){ createExpense(e); });
-    computeAll();
+    (o.invoices||[]).forEach(addInvoice); (o.expenses||[]).forEach(addExpense); compute();
+  });
+  $('clearAll').addEventListener('click',function(){
+    if(confirm('Очистить всё?')){ invoicesBody.innerHTML=''; expensesBody.innerHTML=''; localStorage.removeItem('nalog_v4'); compute(); }
   });
 
-  clearAll.addEventListener('click', function(){
-    if(confirm('Очистить всё и удалить сохранённые данные?')){
-      invoicesBody.innerHTML=''; expensesBody.innerHTML='';
-      localStorage.removeItem('budget_preview_v3');
-      computeAll();
-    }
-  });
-
-  /* ====================== СТАРТ ====================== */
-  if(invoicesBody.children.length===0 && expensesBody.children.length===0){
-    createInvoice({desc:'Оплата от клиента (Пример)', grossReceived:1200.00});
-    createExpense({desc:'Покупка (Пример)', gross:100.00});
-  }
-  computeAll();
+  // ---- старт ----
+  addInvoice({desc:'Оплата от клиента (пример)',base:1000});
+  addExpense({desc:'Софт/подписка (пример)',gross:121,iva:'21',ded:100});
+  compute();
 });
 </script>
 </body>
-
-
-
-
-<!-- ====================== ПОЯСНЕНИЯ И ИНСТРУКЦИЯ ====================== -->
-<div class="card" style="margin-top: 30px; background: #f9f9fb; border: 1px solid #e0e0e0;">
-  <h2 style="font-size: 18px; margin: 0 0 12px; color: #0b5fff;">Как пользоваться калькулятором (пошагово)</h2>
-  <div style="line-height: 1.6; font-size: 14px; color: #333;">
-
-    <p><strong>1. Выбери тип клиента:</strong></p>
-    <ul>
-      <li><strong>Испанский клиент</strong> — если клиент из Испании (физлицо или компания). В этом случае:<br>
-        → <strong>IVA 21%</strong> ты начисляешь и платишь в Hacienda.<br>
-        → Клиент удерживает <strong>IRPF 15%</strong> (если это компания).</li>
-      <li><strong>EU / иностранный клиент</strong> — если клиент из ЕС (например, Кипр, Германия) или вне ЕС.<br>
-        → <strong>IVA = 0%</strong> (reverse charge — клиент сам платит налог в своей стране).<br>
-        → <strong>IRPF удержание = 0%</strong> — ты получаешь всю сумму на счёт.</li>
-    </ul>
-
-    <hr style="border: 0; border-top: 1px dashed #ccc; margin: 16px 0;">
-
-    <p><strong>2. Вводи доходы и расходы:</strong></p>
-    <ul>
-      <li><strong>Доходы</strong> — вводи <strong>реальную сумму, которая пришла на счёт</strong> (gross).<br>
-        <em>Пример: клиент с Кипра перевёл 600 € → пиши 600.</em></li>
-      <li><strong>Расходы</strong> — вводи <strong>сумму с IVA</strong> (как в чеке).<br>
-        <em>Пример: купил программу за 121 € (100 + 21 IVA) → пиши 121.</em></li>
-    </ul>
-
-    <hr style="border: 0; border-top: 1px dashed #ccc; margin: 16px 0;">
-
-    <p><strong>3. Что означают итоги:</strong></p>
-    <table style="width:100%; border-collapse: collapse; margin: 10px 0; font-size: 13px;">
-      <tr><th style="text-align:left; padding:6px; background:#f0f4ff;">Поле</th><th style="text-align:left; padding:6px; background:#f0f4ff;">Объяснение</th></tr>
-      <tr><td style="padding:6px; border-bottom:1px solid #eee;"><strong>Итого получено (Нетто)</strong></td><td style="padding:6px; border-bottom:1px solid #eee;">Налоговая база для IRPF (без IVA и удержаний). <br><small>Для EU-клиента = gross. Для испанского = gross / 1.06</small></td></tr>
-      <tr><td style="padding:6px; border-bottom:1px solid #eee;"><strong>IVA к уплате</strong></td><td style="padding:6px; border-bottom:1px solid #eee;">Сколько нужно заплатить в <strong>Modelo 303</strong> (IVA собранный − IVA в расходах).</td></tr>
-      <tr><td style="padding:6px; border-bottom:1px solid #eee;"><strong>IRPF резерв</strong></td><td style="padding:6px; border-bottom:1px solid #eee;">Аванс 20% от прибыли (минус удержанный IRPF, если был). Платится в <strong>Modelo 130</strong>.</td></tr>
-      <tr><td style="padding:6px; border-bottom:1px solid #eee;"><strong>Требуется на счёте</strong></td><td style="padding:6px; border-bottom:1px solid #eee;">Сумма, которую <strong>нельзя тратить</strong>: налоги + фиксированные расходы (gestor, SS).</td></tr>
-      <tr><td style="padding:6px;"><strong>Доступно для траты</strong></td><td style="padding:6px;">То, что можно <strong>безопасно потратить</strong> на личные нужды.</td></tr>
-    </table>
-
-    <hr style="border: 0; border-top: 1px dashed #ccc; margin: 16px 0;">
-
-    <p><strong>4. Пример с твоей фактурой (600 € от Кипра):</strong></p>
-    <ol>
-      <li>Выбери <strong>EU / иностранный клиент</strong>.</li>
-      <li>Введи доход: <code>600</code> €.</li>
-      <li>Результат: <br>
-        → <strong>Нетто: 600 €</strong> (всё, что пришло).<br>
-        → <strong>IVA к уплате: 0 €</strong> (reverse charge).<br>
-        → <strong>IRPF резерв: ~111.60 €</strong> (20% от прибыли после вычетов).<br>
-        → <strong>Доступно: ~350 €</strong> (при расходах 100 € и fixed 137.61 €).</li>
-    </ol>
-
-    <hr style="border: 0; border-top: 1px dashed #ccc; margin: 16px 0;">
-
-    <p><strong>5. Почему это правильно (по закону Испании, 2025):</strong></p>
-    <ul>
-      <li><strong>IVA 0% для EU B2B</strong> — ст. 196 Директивы ЕС 2006/112/EC, ст. 84 Ley IVA.</li>
-      <li><strong>IRPF удержание 0%</strong> — иностранные клиенты не удерживают испанский IRPF (ст. 99 Ley IRPF).</li>
-      <li><strong>Аванс IRPF 20%</strong> — стандарт для autónomo в estimación directa (Modelo 130).</li>
-      <li><strong>7% вычет</strong> — общие расходы (ст. 30 Ley IRPF).</li>
-    </ul>
-
-    <p style="margin-top: 16px; font-size: 13px; color: #666;">
-      <strong>Важно:</strong> Это <strong>предварительный расчёт</strong>. Всегда проверяй с <strong>gestor'ом</strong> перед подачей деклараций!<br>
-      Не забудь подать <strong>Modelo 349</strong> для операций с EU.
-    </p>
-
-    <div style="margin-top: 16px; text-align: center;">
-      <button onclick="window.print()" class="ghost small" style="background:#0b5fff; color:#fff;">Распечатать калькулятор</button>
-      <button onclick="alert('Версия: 3.0 | Обновлено: 09.11.2025')" class="ghost small">Версия</button>
-    </div>
-  </div>
-</div>
-
-
-
-
-
-
 </html>
